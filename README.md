@@ -6,3 +6,7 @@ Use [Poetry](https://python-poetry.org/). Install Poetry itself via `pip install
 
     poetry install --no-root
     poetry shell
+
+## Usage
+
+    python posterization.py images/Kobe.png
