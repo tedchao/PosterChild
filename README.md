@@ -9,6 +9,11 @@ Use [Poetry](https://python-poetry.org/). Install Poetry itself via `pip install
 
 ## Usage
 
+Package to install:
+
+    pip install scipy
+    pip install cvxopt
+
 Run
 
     python posterization.py images/Kobe.png
