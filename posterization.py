@@ -238,8 +238,33 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
 	return mesh
 
 
+def neighbor_cost_fun(s1, s2, l1, l2):
+	
+	return 0
+	
 
-def posterization(image_arr, num_colors):
+def multi_label_opt(candidate_colors, num_colors, neighbors_list):
+	
+	import gco
+	
+	gc = gco.GCO()
+	
+	"""Create a general graph with specified number of sites and labels."""
+	gc.create_general_graph(len(candidate_colors), num_colors)
+	
+	"""Set unary potentials, unary should be a matrix of size
+	nb_sites x nb_labels. unary can be either integers or float."""
+	gc.set_data_cost(np.array([[8, 1], [8, 2], [2, 8]]))
+	
+	
+	gc.set_all_neighbors(np.arange(0, 2), np.arange(1, 3), np.ones(2))
+	
+	
+	
+	return labels
+
+
+def posterization(path, image_arr, num_colors):
 	'''
 	Given:
 		image_arr: An n-rows by m-columns array of RGB colors.
@@ -257,22 +282,48 @@ def posterization(image_arr, num_colors):
 	img_reshape = image_arr.reshape((-1,3))
 	og_hull = ConvexHull(img_reshape)
 	
-	output_rawhull_obj_file = "rawconvexhull.obj"
+	output_rawhull_obj_file = path + "-rawconvexhull.obj"
 	write_convexhull_into_obj_file(og_hull, output_rawhull_obj_file)		
 	
 	# clipped already
 	mesh = simplified_convex_hull(output_rawhull_obj_file, num_colors)
 	
+	# store the neighbors
+	"""2-dimensional list"""
+	neighbors = []
+	for i in range(num_colors):
+		neighbors.append(mesh.vertex_vertex_neighbors(i))
+		
+	
 	# two-way discrete color blendings
-	from itertools import combinations 
-	
 	candidate_colors = mesh.vs
-	for pair in combinations(candidate_colors, 2):
-		a, b = pair
-		candidate_colors = np.vstack((candidate_colors, .5*a + .5*b ))
-		candidate_colors = np.vstack((candidate_colors, .25*a + .75*b ))	
+	pos_iter = num_colors
+	for i in range(num_colors):
+		for j in range(i+1, num_colors):
+			# add to candidate colors
+			candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j]))
+			candidate_colors = np.vstack((candidate_colors, .25*candidate_colors[i] + .75*candidate_colors[j]))
 	
-	import gco
+			# update neighbor list for the "first" blended color in original vertex's neighbor list
+			neighbors[i].append(pos_iter)
+			neighbors[j].append(pos_iter)	
+			
+			# update neighbor list for the "second" blended color in original vertex's neighbor list
+			neighbors[i].append(pos_iter + 1)
+			neighbors[j].append(pos_iter + 1)
+			
+			# add in neighbor list for our newly blended colors
+			"""A lerp, so adjacent linear blended color will be a neighbor as well."""
+			neighbors.append([i, j, pos_iter+1])
+			neighbors.append([i, j, pos_iter])
+			
+			pos_iter += 2
+	
+	print(neighbors)
+	
+	
+	
+	#final_labels = multi_label_opt(candidate_colors, num_colors)
 	
 	
 	
@@ -283,7 +334,7 @@ def posterization(image_arr, num_colors):
 def main():
 	# (486, 864, 3) for kobe's example
 	img_arr = np.asfarray(Image.open(sys.argv[1]).convert('RGB'))/255.
-	posterization(img_arr, 6)
+	posterization(sys.argv[1], img_arr, 6)
 	#Image.fromarray(np.clip(0, 255, np.asfarray(arr)*255.)).save(sys.argv[2])
 
 if __name__ == '__main__':
