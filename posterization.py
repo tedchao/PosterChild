@@ -46,7 +46,6 @@ def compute_tetrahedron_volume(face, point):
 
 # These function is directly copied from Jianchao Tan
 def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh, option):
- 
 	edges=mesh.get_edges()
 	faces=mesh.faces
 	vertices=mesh.vs
@@ -213,7 +212,6 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
 		return mesh
 
 def simplified_convex_hull(output_rawhull_obj_file, num_colors):
-	
 	mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
 	print ('original vertices number:',len(mesh.vs))
 	
@@ -241,27 +239,6 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
 def neighbor_cost_fun(s1, s2, l1, l2):
 	
 	return 0
-	
-
-def multi_label_opt(candidate_colors, neighbors_list, num_colors, num_of_ways):
-	
-	import gco
-	
-	gc = gco.GCO()
-	
-	"""Create a general graph with specified number of sites and labels."""
-	gc.create_general_graph(len(candidate_colors), num_colors)
-	
-	"""Set unary potentials, unary should be a matrix of size
-	nb_sites x nb_labels. unary can be either integers or float."""
-	gc.set_data_cost(np.array([[8, 1], [8, 2], [2, 8]]))
-	
-	
-	gc.set_all_neighbors(np.arange(0, 2), np.arange(1, 3), np.ones(2))
-	
-	
-	
-	return labels
 
 
 """
@@ -284,8 +261,32 @@ def neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways):
 	neighbors_np = np.array(neighbors_np)
 	s1 = neighbors_np[:, 0]
 	s2 = neighbors_np[:, 1]
+	#print(len(s1), len(s2))
 	
 	return s1, s2
+	
+
+def multi_label_opt(candidate_colors, neighbors_list, num_colors, num_of_ways):
+	import gco
+	gc = gco.GCO()
+	
+	#Create a general graph with specified number of sites and labels.
+	gc.create_general_graph(len(candidate_colors), num_colors)
+	
+	"""
+	Set unary potentials, unary should be a matrix of size
+	nb_sites x nb_labels. unary can be either integers or float.
+	"""
+	gc.set_data_cost(np.array([[8, 1], [8, 2], [2, 8]]))
+	
+	# set up neighbor relationships
+	# parameters: neighbor node 1, neighbor node 2, weights
+	s1, s2 = neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways)
+	gc.set_all_neighbors(s1, s2, np.ones(len(s1)))
+	
+	
+	
+	return labels
 	
 
 
@@ -343,7 +344,6 @@ def posterization(path, image_arr, num_colors):
 			neighbor_list.append([i, j, pos_iter])
 			
 			pos_iter += 2
-	
 	
 	
 
