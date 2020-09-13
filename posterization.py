@@ -243,7 +243,7 @@ def neighbor_cost_fun(s1, s2, l1, l2):
 	return 0
 	
 
-def multi_label_opt(candidate_colors, num_colors, neighbors_list):
+def multi_label_opt(candidate_colors, neighbors_list, num_colors, num_of_ways):
 	
 	import gco
 	
@@ -262,6 +262,31 @@ def multi_label_opt(candidate_colors, num_colors, neighbors_list):
 	
 	
 	return labels
+
+
+"""
+convert the 2d list of neighbors into two 1d numpy ndarrays s1, s2.
+Each element in s1 should be smaller than the corresponding element in s2.
+In our cases, number of ways of blendings will be 2.
+"""
+def neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways):
+	# compute total number of nodes in the graph
+	num_nodes = num_colors + num_of_ways * (num_colors * (num_colors - 1)) / 2
+	
+	# may be slow, but easy to write for now
+	neighbors_np = []
+	for i in range(len(neighbor_list)):
+		neighbor_list[i].sort()
+		for j in range(len(neighbor_list[i])):
+			if i < neighbor_list[i][j]:
+				neighbors_np.append([i, neighbor_list[i][j]])
+	
+	neighbors_np = np.array(neighbors_np)
+	s1 = neighbors_np[:, 0]
+	s2 = neighbors_np[:, 1]
+	
+	return s1, s2
+	
 
 
 def posterization(path, image_arr, num_colors):
@@ -290,9 +315,9 @@ def posterization(path, image_arr, num_colors):
 	
 	# store the neighbors
 	"""2-dimensional list"""
-	neighbors = []
+	neighbor_list = []
 	for i in range(num_colors):
-		neighbors.append(mesh.vertex_vertex_neighbors(i))
+		neighbor_list.append(mesh.vertex_vertex_neighbors(i))
 		
 	
 	# two-way discrete color blendings
@@ -305,28 +330,19 @@ def posterization(path, image_arr, num_colors):
 			candidate_colors = np.vstack((candidate_colors, .25*candidate_colors[i] + .75*candidate_colors[j]))
 	
 			# update neighbor list for the "first" blended color in original vertex's neighbor list
-			neighbors[i].append(pos_iter)
-			neighbors[j].append(pos_iter)	
+			neighbor_list[i].append(pos_iter)
+			neighbor_list[j].append(pos_iter)	
 			
 			# update neighbor list for the "second" blended color in original vertex's neighbor list
-			neighbors[i].append(pos_iter + 1)
-			neighbors[j].append(pos_iter + 1)
+			neighbor_list[i].append(pos_iter + 1)
+			neighbor_list[j].append(pos_iter + 1)
 			
 			# add in neighbor list for our newly blended colors
 			"""A lerp, so adjacent linear blended color will be a neighbor as well."""
-			neighbors.append([i, j, pos_iter+1])
-			neighbors.append([i, j, pos_iter])
+			neighbor_list.append([i, j, pos_iter+1])
+			neighbor_list.append([i, j, pos_iter])
 			
 			pos_iter += 2
-	
-	print(neighbors)
-	
-	
-	
-	#final_labels = multi_label_opt(candidate_colors, num_colors)
-	
-	
-	
 	
 	
 	
