@@ -297,9 +297,7 @@ def posterization(path, image_arr, num_colors):
 	'''
 	assert len(image_arr.shape) == 3
 	assert num_colors == int(num_colors) and num_colors > 0
-	
-	print(image_arr.shape[0])
-	
+
 	'''
 	#1 and #2
 	'''
@@ -333,7 +331,7 @@ def posterization(path, image_arr, num_colors):
 	for i in range(len(labels)):
 		labels[i] = mesh.vs[labels[i]]
 	
-	img_seg = np.asfarray(labels).reshape(486, 864, 3)
+	img_seg = np.asfarray(labels).reshape(image_arr.shape[0], image_arr.shape[1], 3)
 	
 	return img_seg
 	
@@ -373,7 +371,6 @@ def posterization(path, image_arr, num_colors):
 	
 
 def main():
-	# (486, 864, 3) for kobe's example
 	img_arr = np.asfarray(Image.open(sys.argv[1]).convert('RGB'))/255.
 	img_seg = posterization(sys.argv[1], img_arr, 6)
 	Image.fromarray(np.clip(0, 255, img_seg*255.).astype(np.uint8)).save(sys.argv[2])
