@@ -16,4 +16,4 @@ Package to install:
 
 Run
 
-    python posterization.py images/Kobe.png
+    python posterization.py images/Kobe.png images/post_Kobe.png
