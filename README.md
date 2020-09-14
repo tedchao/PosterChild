@@ -14,6 +14,6 @@ Package to install:
     pip install scipy
     pip install cvxopt
 
-Run
+Example run:
 
     python posterization.py images/Kobe.png images/post_Kobe.png
