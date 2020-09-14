@@ -105,7 +105,7 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
 		
 
 			######## using objective function to calculate (volume) or (distance to face) as priority.
-#             volume=res['primal objective']+b.sum()
+#			  volume=res['primal objective']+b.sum()
 			
 		
 			####### manually compute volume as priority,so no relation with objective function
@@ -223,7 +223,7 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
 		old_num = len(mesh.vs)
 		mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
 		mesh = remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,option=2)
-		newhull = ConvexHull(mesh.vs)   # new convex hull
+		newhull = ConvexHull(mesh.vs)	# new convex hull
 		
 		write_convexhull_into_obj_file(newhull, output_rawhull_obj_file)
 
@@ -371,10 +371,15 @@ def posterization(path, image_arr, num_colors):
 	
 
 def main():
-	img_arr = np.asfarray(Image.open(sys.argv[1]).convert('RGB'))/255.
-	img_seg = posterization(sys.argv[1], img_arr, 6)
-	Image.fromarray(np.clip(0, 255, img_seg*255.).astype(np.uint8)).save(sys.argv[2])
+	import argparse
+	parser = argparse.ArgumentParser( description = 'Posterization.' )
+	parser.add_argument( 'input_image', help = 'The path to the input image.' )
+	parser.add_argument( 'output_path', help = 'Where to save the output image.' )
+	args = parser.parse_args()
+	
+	img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.
+	img_seg = posterization(args.input_image, img_arr, 6)
+	Image.fromarray(np.clip(0, 255, img_seg*255.).astype(np.uint8)).save(args.output_path)
 
 if __name__ == '__main__':
 	main()
-	

@@ -9,6 +9,8 @@ python = "^3.6"
 numpy = "^1.18"
 gco-wrapper = "^3.0.3"
 pillow = "^7.2.0"
+scipy = "^1.5.2"
+cvxopt = "^1.2.5"
 
 [tool.poetry.dev-dependencies]
 

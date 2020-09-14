@@ -1,5 +1,13 @@
 [[package]]
 category = "main"
+description = "Convex optimization package"
+name = "cvxopt"
+optional = false
+python-versions = "*"
+version = "1.2.5"
+
+[[package]]
+category = "main"
 description = "The Cython compiler for writing C extensions for the Python language."
 name = "cython"
 optional = false
@@ -34,12 +42,44 @@ optional = false
 python-versions = ">=3.5"
 version = "7.2.0"
 
+[[package]]
+category = "main"
+description = "SciPy: Scientific Library for Python"
+name = "scipy"
+optional = false
+python-versions = ">=3.6"
+version = "1.5.2"
+
+[package.dependencies]
+numpy = ">=1.14.5"
+
 [metadata]
-content-hash = "3d54e7eef63348064a30a32d33d44fbd683b3c198ac7b15d074c0750e7348a03"
+content-hash = "3f988b4a2d6dd1b0bd39729b30655bb861a518188ce96aa872690799419460b0"
 lock-version = "1.0"
 python-versions = "^3.6"
 
 [metadata.files]
+cvxopt = [
+    {file = "cvxopt-1.2.5-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:78d0ea93f71f4b5b882ecd741ddc1e0cc8b06f4a2881f9d3fa55631d633273b6"},
+    {file = "cvxopt-1.2.5-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:fcc447eb3a0465f9d6b78f3df9861cb6fdb18ff7ad008e17f614da580e1fdbee"},
+    {file = "cvxopt-1.2.5-cp27-cp27m-manylinux1_i686.whl", hash = "sha256:d74806ea13bbe5829903d048e19402051e784e4b34a86cdee2ba80d13f29a54f"},
+    {file = "cvxopt-1.2.5-cp27-cp27m-manylinux1_x86_64.whl", hash = "sha256:50c464cbb43d1e350759294107abbef29576ea70605f5ac86db7c022002ab22f"},
+    {file = "cvxopt-1.2.5-cp27-cp27m-win_amd64.whl", hash = "sha256:60daaf297d195b33eab6a90c6fd9e8939541fdb209ed2972b70fba6dcbf82192"},
+    {file = "cvxopt-1.2.5-cp27-cp27mu-manylinux1_i686.whl", hash = "sha256:ae3684ffabb135a059ba2c1947c0c1e00d79374967f40e807cb0fce65e514999"},
+    {file = "cvxopt-1.2.5-cp27-cp27mu-manylinux1_x86_64.whl", hash = "sha256:6517bde92411c6b57d09a60c51ef066952400b0b21cf26694a0b0b0fc3faa065"},
+    {file = "cvxopt-1.2.5-cp35-cp35m-macosx_10_6_intel.whl", hash = "sha256:01b579ef42258f129fc1f249d5bd2945b6183e4323ff9a45a61d1224d76ab778"},
+    {file = "cvxopt-1.2.5-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:4dcb001b1c6a40ec9c61103816aae0d32dbc11894e0f5f645668f524a051bcaa"},
+    {file = "cvxopt-1.2.5-cp35-cp35m-win_amd64.whl", hash = "sha256:8095c783278b3b3084b0ea431fdec072f5c17ba7b4249b3a71b3866f00fd0d9f"},
+    {file = "cvxopt-1.2.5-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:7737e406e9d7ecfd86d93492c619238969023ea2b4556bf576b4a7be149aa9f0"},
+    {file = "cvxopt-1.2.5-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:9ef3bade9effc568b4b077166d5dde9632c2ead8d71e3f6c930e08ae29c7bb64"},
+    {file = "cvxopt-1.2.5-cp36-cp36m-win_amd64.whl", hash = "sha256:02976910f5ff456246e0454d32babe61aa5c7e4c781a330840347fcf3c54f5fa"},
+    {file = "cvxopt-1.2.5-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:1d56655abfd7e0d3051d71bffe322ce77d71e5d683bcc6a359fe207dbff02a8b"},
+    {file = "cvxopt-1.2.5-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:8bcb1e4b6a92ecbd6b1bea630b666d12cf253c2b902e5d039653e850defff887"},
+    {file = "cvxopt-1.2.5-cp37-cp37m-win_amd64.whl", hash = "sha256:dd2c97ace2739f31bceadd29e0e9535fe7457d756a6d9d207e1a654fd1ad1dc2"},
+    {file = "cvxopt-1.2.5-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:37768ccefd3aec0dd9428d5eaa1a075d2db1d485e9b93c4d5d02464297a6530a"},
+    {file = "cvxopt-1.2.5-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:3446b360c4123949511b4aef0b3d0bcdd3ce485b8e682c221a39c886945eacd3"},
+    {file = "cvxopt-1.2.5.tar.gz", hash = "sha256:94ec8c36bd6628a11de9014346692daeeef99b3b7bae28cef30c7490bbcb2d72"},
+]
 cython = [
     {file = "Cython-0.29.21-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:c541b2b49c6638f2b5beb9316726db84a8d1c132bf31b942dae1f9c7f6ad3b92"},
     {file = "Cython-0.29.21-cp27-cp27m-manylinux1_i686.whl", hash = "sha256:b8d8497091c1dc8705d1575c71e908a93b1f127a174b2d472020f3d84263ac28"},
@@ -133,4 +173,22 @@ pillow = [
     {file = "Pillow-7.2.0-cp38-cp38-win_amd64.whl", hash = "sha256:a060cf8aa332052df2158e5a119303965be92c3da6f2d93b6878f0ebca80b2f6"},
     {file = "Pillow-7.2.0-pp36-pypy36_pp73-win32.whl", hash = "sha256:25930fadde8019f374400f7986e8404c8b781ce519da27792cbe46eabec00c4d"},
     {file = "Pillow-7.2.0.tar.gz", hash = "sha256:97f9e7953a77d5a70f49b9a48da7776dc51e9b738151b22dacf101641594a626"},
+]
+scipy = [
+    {file = "scipy-1.5.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:cca9fce15109a36a0a9f9cfc64f870f1c140cb235ddf27fe0328e6afb44dfed0"},
+    {file = "scipy-1.5.2-cp36-cp36m-manylinux1_i686.whl", hash = "sha256:1c7564a4810c1cd77fcdee7fa726d7d39d4e2695ad252d7c86c3ea9d85b7fb8f"},
+    {file = "scipy-1.5.2-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:07e52b316b40a4f001667d1ad4eb5f2318738de34597bd91537851365b6c61f1"},
+    {file = "scipy-1.5.2-cp36-cp36m-win32.whl", hash = "sha256:d56b10d8ed72ec1be76bf10508446df60954f08a41c2d40778bc29a3a9ad9bce"},
+    {file = "scipy-1.5.2-cp36-cp36m-win_amd64.whl", hash = "sha256:8e28e74b97fc8d6aa0454989db3b5d36fc27e69cef39a7ee5eaf8174ca1123cb"},
+    {file = "scipy-1.5.2-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:6e86c873fe1335d88b7a4bfa09d021f27a9e753758fd75f3f92d714aa4093768"},
+    {file = "scipy-1.5.2-cp37-cp37m-manylinux1_i686.whl", hash = "sha256:a0afbb967fd2c98efad5f4c24439a640d39463282040a88e8e928db647d8ac3d"},
+    {file = "scipy-1.5.2-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:eecf40fa87eeda53e8e11d265ff2254729d04000cd40bae648e76ff268885d66"},
+    {file = "scipy-1.5.2-cp37-cp37m-win32.whl", hash = "sha256:315aa2165aca31375f4e26c230188db192ed901761390be908c9b21d8b07df62"},
+    {file = "scipy-1.5.2-cp37-cp37m-win_amd64.whl", hash = "sha256:ec5fe57e46828d034775b00cd625c4a7b5c7d2e354c3b258d820c6c72212a6ec"},
+    {file = "scipy-1.5.2-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:fc98f3eac993b9bfdd392e675dfe19850cc8c7246a8fd2b42443e506344be7d9"},
+    {file = "scipy-1.5.2-cp38-cp38-manylinux1_i686.whl", hash = "sha256:a785409c0fa51764766840185a34f96a0a93527a0ff0230484d33a8ed085c8f8"},
+    {file = "scipy-1.5.2-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:0a0e9a4e58a4734c2eba917f834b25b7e3b6dc333901ce7784fd31aefbd37b2f"},
+    {file = "scipy-1.5.2-cp38-cp38-win32.whl", hash = "sha256:dac09281a0eacd59974e24525a3bc90fa39b4e95177e638a31b14db60d3fa806"},
+    {file = "scipy-1.5.2-cp38-cp38-win_amd64.whl", hash = "sha256:92eb04041d371fea828858e4fff182453c25ae3eaa8782d9b6c32b25857d23bc"},
+    {file = "scipy-1.5.2.tar.gz", hash = "sha256:066c513d90eb3fd7567a9e150828d39111ebd88d3e924cdfc9f8ce19ab6f90c9"},
 ]
