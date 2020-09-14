@@ -193,7 +193,7 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
 			
 			
 			#### not sure if I clip this right, it may contain bugs
-			mesh.vs = np.vstack( ( mesh.vs, final_point.clip(0.0,255.0) ) )
+			mesh.vs = np.vstack( ( mesh.vs, final_point.clip(0.0,1.0) ) )
 			
 
 			##### clip coordinates during simplification!
@@ -246,6 +246,7 @@ convert the 2d list of neighbors into two 1d numpy ndarrays s1, s2.
 Each element in s1 should be smaller than the corresponding element in s2.
 In our cases, number of ways of blendings will be 2.
 """
+'''
 def neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways):
 	# compute total number of nodes in the graph
 	num_nodes = num_colors + num_of_ways * (num_colors * (num_colors - 1)) / 2
@@ -266,12 +267,12 @@ def neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways):
 	return s1, s2
 	
 
-def multi_label_opt(candidate_colors, neighbors_list, num_colors, num_of_ways):
+def multi_label_opt(neighbors_list, num_colors, num_of_ways):
 	import gco
 	gc = gco.GCO()
 	
 	#Create a general graph with specified number of sites and labels.
-	gc.create_general_graph(len(candidate_colors), num_colors)
+	gc.create_general_graph(len(neighbors_list), num_colors)
 	
 	"""
 	Set unary potentials, unary should be a matrix of size
@@ -284,10 +285,8 @@ def multi_label_opt(candidate_colors, neighbors_list, num_colors, num_of_ways):
 	s1, s2 = neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways)
 	gc.set_all_neighbors(s1, s2, np.ones(len(s1)))
 	
-	
-	
 	return labels
-	
+'''
 
 
 def posterization(path, image_arr, num_colors):
@@ -299,6 +298,7 @@ def posterization(path, image_arr, num_colors):
 	assert len(image_arr.shape) == 3
 	assert num_colors == int(num_colors) and num_colors > 0
 	
+	print(image_arr.shape[0])
 	
 	'''
 	#1 and #2
@@ -313,14 +313,38 @@ def posterization(path, image_arr, num_colors):
 	
 	# clipped already
 	mesh = simplified_convex_hull(output_rawhull_obj_file, num_colors)
+
+
+	import gco
 	
+	# unary.shape = (486, 864, 6) ideally!
+	unary = np.zeros((image_arr.shape[0], image_arr.shape[1], num_colors))
+	
+	for i in range(num_colors):
+		dist_square = (mesh.vs[i] - image_arr) ** 2
+		unary[:, :, i] = np.sum(dist_square, axis = 2)
+	
+	# pairwise.shape = (6, 6) ideally!
+	pairwise = (1 - np.eye(num_colors)) * 0.5
+	
+	labels = gco.cut_grid_graph_simple(unary, pairwise, n_iter=100)
+	labels = list(labels)
+	
+	for i in range(len(labels)):
+		labels[i] = mesh.vs[labels[i]]
+	
+	img_seg = np.asfarray(labels).reshape(486, 864, 3)
+	
+	return img_seg
+	
+
+	'''
 	# store the neighbors
 	"""2-dimensional list"""
 	neighbor_list = []
 	for i in range(num_colors):
 		neighbor_list.append(mesh.vertex_vertex_neighbors(i))
-		
-	
+
 	# two-way discrete color blendings
 	candidate_colors = mesh.vs
 	pos_iter = num_colors
@@ -344,14 +368,15 @@ def posterization(path, image_arr, num_colors):
 			neighbor_list.append([i, j, pos_iter])
 			
 			pos_iter += 2
+	'''
 	
 	
 
 def main():
 	# (486, 864, 3) for kobe's example
 	img_arr = np.asfarray(Image.open(sys.argv[1]).convert('RGB'))/255.
-	posterization(sys.argv[1], img_arr, 6)
-	#Image.fromarray(np.clip(0, 255, np.asfarray(arr)*255.)).save(sys.argv[2])
+	img_seg = posterization(sys.argv[1], img_arr, 6)
+	Image.fromarray(np.clip(0, 255, img_seg*255.).astype(np.uint8)).save(sys.argv[2])
 
 if __name__ == '__main__':
 	main()
