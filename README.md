@@ -9,7 +9,7 @@ Use [Poetry](https://python-poetry.org/). Install Poetry itself via `pip install
 
 ## Usage
 
-Package to install:
+Packages to be installed:
 
     pip install scipy
     pip install cvxopt
