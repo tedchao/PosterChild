@@ -7,6 +7,7 @@ from scipy.optimize import *
 from math import *
 from trimesh import TriMesh
 import cvxopt
+import potrace
 
 
 
@@ -290,6 +291,7 @@ def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors):
 
 
 def get_unary(image_arr, candidate_colors):
+	
 	# unary.shape = (486, 864, 6) ideally!
 	unary = np.zeros((image_arr.shape[0], image_arr.shape[1], len(candidate_colors)))
 		
@@ -324,7 +326,7 @@ def get_binary(neighbor_list, weight_list, candidate_colors, option=1):
 				if i != j:
 					binary[i][j] = 0.5 * np.linalg.norm((weight_list[i] - weight_list[j]), ord=1)
 					
-	print(binary)
+	#print(binary)
 	return binary
 	
 def get_num_colors_used(colors):
@@ -334,6 +336,32 @@ def get_num_colors_used(colors):
 		if label not in visited:
 			visited.append(label)
 	return len(visited)
+	
+	
+def get_boundaries(labels, img_h, img_w):
+	
+	boundaries = []
+	num_label = get_num_colors_used(labels)
+	print('Final number of colors being used: ', num_label)
+	
+	# loop through all the labels and convert each label into a bitmap in each step
+	for i in range(num_label):
+		spec_label = np.copy(labels)
+		for j in range(spec_label.size):
+			if spec_label[j] == i:
+				spec_label[j] = 1
+			else:
+				spec_label[j] = 0
+		spec_label_pos = spec_label.reshape(img_h, img_w)
+		
+		# Create a bitmap from the array
+		bmp = potrace.Bitmap(spec_label_pos)
+
+		# Trace the bitmap
+		path = bmp.trace()
+		boundaries.append(path)
+		
+	return boundaries
 
 
 def posterization(path, image_arr, num_colors):
@@ -378,20 +406,23 @@ def posterization(path, image_arr, num_colors):
 	print('start multi-label optimization...')
 	unary = get_unary(image_arr, candidate_colors)
 	binary = get_binary(neighbor_list, weight_list, candidate_colors, option=1)
-		
-	labels = gco.cut_grid_graph_simple(unary, binary, n_iter=100, algorithm='swap') # alpha-beta-swap
-	labels = list(labels)
 	
-	print('Final number of colors being used: ',get_num_colors_used(labels))
+	# get final labels from the optimization	
+	labels = gco.cut_grid_graph_simple(unary, binary, n_iter=100, algorithm='swap') # alpha-beta-swap
 	
 	# convert labels to RGBs
-	for i in range(len(labels)):
-		labels[i] = candidate_colors[labels[i]]
+	post_img = np.zeros((labels.size, 3))
+	for i in range(labels.size):
+		post_img[i, :] = np.array(candidate_colors[labels[i]])
 	
 	# reconstruct segmented images
-	img_seg = np.asfarray(labels).reshape(image_arr.shape[0], image_arr.shape[1], 3)
+	post_img = np.asfarray(post_img).reshape(image_arr.shape[0], image_arr.shape[1], 3)
 	
-	return img_seg
+	########
+	########
+	boundaries = get_boundaries(labels, image_arr.shape[0], image_arr.shape[1])
+	
+	return post_img
 	
 	
 	
@@ -404,8 +435,8 @@ def main():
 	args = parser.parse_args()
 
 	img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.
-	img_seg = posterization(args.input_image, img_arr, 6)
-	Image.fromarray(np.clip(0, 255, img_seg*255.).astype(np.uint8)).save(sys.argv[2])
+	post_img = posterization(args.input_image, img_arr, 6)
+	Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8)).save(sys.argv[2])
 
 if __name__ == '__main__':
 	main()
