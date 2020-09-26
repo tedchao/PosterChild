@@ -9,10 +9,12 @@ Use [Poetry](https://python-poetry.org/). Install Poetry itself via `pip install
 
 ## Usage
 
-Packages to be installed:
+Install potrace:
 
-    pip install scipy
-    pip install cvxopt
+    brew install libagg pkg-config potrace
+    git clone https://github.com/flupke/pypotrace.git
+    cd pypotrace
+    pip install .
 
 Example run:
 
