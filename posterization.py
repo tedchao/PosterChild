@@ -105,7 +105,7 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
 		
 
 			######## using objective function to calculate (volume) or (distance to face) as priority.
-#			  volume=res['primal objective']+b.sum()
+#             volume=res['primal objective']+b.sum()
 			
 		
 			####### manually compute volume as priority,so no relation with objective function
@@ -223,22 +223,196 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
 		old_num = len(mesh.vs)
 		mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
 		mesh = remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,option=2)
-		newhull = ConvexHull(mesh.vs)	# new convex hull
+		newhull = ConvexHull(mesh.vs)   # new convex hull
 		
 		write_convexhull_into_obj_file(newhull, output_rawhull_obj_file)
 
 		#print ('current vertices number:', len(mesh.vs))
 		
 		if len(mesh.vs) == old_num or len(mesh.vs) <= num_colors:
-			print ('final vertices number', len(mesh.vs))
+			print ('final vertices number:', len(mesh.vs))
 			break
 	
 	return mesh
 
 
-def neighbor_cost_fun(s1, s2, l1, l2):
+def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors):
 	
-	return 0
+	blends = [[0.5, 0.5], [0.25, 0.75], [0.75, 0.25]]
+	# store the neighbors
+	"""2-dimensional list"""
+	neighbor_list = []
+	for i in range(num_colors):
+		neighbor_list.append(mesh.vertex_vertex_neighbors(i))
+		
+	# discrete blendings
+	candidate_colors = mesh.vs
+	pos_iter = num_colors
+	for i in range(num_colors):
+		for j in range(i+1, num_colors):
+			# add to candidate colors
+			candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j]))
+			candidate_colors = np.vstack((candidate_colors, .25*candidate_colors[i] + .75*candidate_colors[j]))
+			candidate_colors = np.vstack((candidate_colors, .75*candidate_colors[i] + .25*candidate_colors[j]))
+			
+			# update neighbor list for the "first" blended color in original vertex's neighbor list
+			#neighbor_list[i].append(pos_iter)
+			#neighbor_list[j].append(pos_iter)
+				
+			# update neighbor list for the "second" blended color in original vertex's neighbor list
+			neighbor_list[i].append(pos_iter + 1)
+			#neighbor_list[j].append(pos_iter + 1)	
+			
+			# update neighbor list for the "third" blended color in original vertex's neighbor list
+			#neighbor_list[i].append(pos_iter + 2)
+			neighbor_list[j].append(pos_iter + 2)	
+			
+			# add in neighbor list for our newly blended colors
+			"""A lerp, so adjacent linear blended color will be a neighbor as well."""
+			#neighbor_list.append([i, j])
+			
+			# add in neighbor list for our newly blended colors
+			"""A lerp, so adjacent linear blended color will be a neighbor as well."""
+			neighbor_list.append([pos_iter+1, pos_iter+2])     # first color
+			neighbor_list.append([i, pos_iter])
+			neighbor_list.append([j, pos_iter])
+			
+			# add palette weight for each color to weight list
+			for s in range(3):
+				weights = num_colors * [0]
+				weights[i] = blends[s][0]
+				weights[j] = blends[s][1]
+				weight_list.append(weights)
+			
+			pos_iter += 3
+	
+	return candidate_colors, neighbor_list, np.array(weight_list)
+
+
+def get_unary(image_arr, candidate_colors):
+	# unary.shape = (486, 864, 6) ideally!
+	unary = np.zeros((image_arr.shape[0], image_arr.shape[1], len(candidate_colors)))
+		
+	for i in range(len(candidate_colors)):
+		dist_square = (candidate_colors[i] - image_arr) ** 2
+		unary[:, :, i] = np.sqrt(np.sum(dist_square, axis = 2))
+		
+	return unary
+	
+	
+def get_binary(neighbor_list, weight_list, candidate_colors, option=1):
+	
+	# 1 if neighbor, (inf) if not neighbor, diag(binary) = 0
+	if option == 1:
+		binary = np.ones((len(neighbor_list), len(neighbor_list))) * np.inf
+		
+		for i in range(len(candidate_colors)):
+			for j in range(len(candidate_colors)):
+				if i == j:
+					binary[i][j] = 0
+		
+		for i in range(len(neighbor_list)):
+			for j in range(len(neighbor_list[i])):
+				binary[i][neighbor_list[i][j]] = 1
+	
+	# half of the L1 norm distance based on weights on each palette
+	if option == 2:
+		binary = np.zeros((len(neighbor_list), len(neighbor_list)))
+		
+		for i in range(len(candidate_colors)):
+			for j in range(len(candidate_colors)):
+				if i != j:
+					binary[i][j] = 0.5 * np.linalg.norm((weight_list[i] - weight_list[j]), ord=1)
+					
+	print(binary)
+	return binary
+	
+def get_num_colors_used(colors):
+	# option 1 means list
+	visited = []
+	for label in colors:
+		if label not in visited:
+			visited.append(label)
+	return len(visited)
+
+
+def posterization(path, image_arr, num_colors):
+	'''
+	Given:
+		image_arr: An n-rows by m-columns array of RGB colors.
+		num_colors: number of ink colors for the poster.
+	'''
+	assert len(image_arr.shape) == 3
+	assert num_colors == int(num_colors) and num_colors > 0
+
+	'''
+	#1 and #2
+	'''
+	
+	# reshape image array into scipy.convexhull
+	img_reshape = image_arr.reshape((-1,3))
+	
+	og_hull = ConvexHull(img_reshape)
+	
+	output_rawhull_obj_file = path + "-rawconvexhull.obj"
+	write_convexhull_into_obj_file(og_hull, output_rawhull_obj_file)		
+	
+	# clipped already
+	mesh = simplified_convex_hull(output_rawhull_obj_file, num_colors)
+
+	# compute weight list
+	weight_list = []
+	for i in range(num_colors):
+		weight = num_colors * [0]
+		weight[i] = 1
+		weight_list.append(weight)
+	
+	# get blended colors and neighbor list
+	candidate_colors, neighbor_list, weight_list = \
+	get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors)
+	
+	#print(weight_list)
+	
+	# Multi-label optimization 
+	import gco
+	print('start multi-label optimization...')
+	unary = get_unary(image_arr, candidate_colors)
+	binary = get_binary(neighbor_list, weight_list, candidate_colors, option=1)
+		
+	labels = gco.cut_grid_graph_simple(unary, binary, n_iter=100, algorithm='swap') # alpha-beta-swap
+	labels = list(labels)
+	
+	print('Final number of colors being used: ',get_num_colors_used(labels))
+	
+	# convert labels to RGBs
+	for i in range(len(labels)):
+		labels[i] = candidate_colors[labels[i]]
+	
+	# reconstruct segmented images
+	img_seg = np.asfarray(labels).reshape(image_arr.shape[0], image_arr.shape[1], 3)
+	
+	return img_seg
+	
+	
+	
+
+def main():
+	import argparse
+	parser = argparse.ArgumentParser( description = 'Posterization.' )
+	parser.add_argument( 'input_image', help = 'The path to the input image.' )
+	parser.add_argument( 'output_path', help = 'Where to save the output image.' )
+	args = parser.parse_args()
+
+	img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.
+	img_seg = posterization(args.input_image, img_arr, 6)
+	Image.fromarray(np.clip(0, 255, img_seg*255.).astype(np.uint8)).save(sys.argv[2])
+
+if __name__ == '__main__':
+	main()
+	
+	
+
+
 
 
 """
@@ -287,99 +461,3 @@ def multi_label_opt(neighbors_list, num_colors, num_of_ways):
 	
 	return labels
 '''
-
-
-def posterization(path, image_arr, num_colors):
-	'''
-	Given:
-		image_arr: An n-rows by m-columns array of RGB colors.
-		num_colors: number of ink colors for the poster.
-	'''
-	assert len(image_arr.shape) == 3
-	assert num_colors == int(num_colors) and num_colors > 0
-
-	'''
-	#1 and #2
-	'''
-	
-	# reshape image array into scipy.convexhull
-	img_reshape = image_arr.reshape((-1,3))
-	og_hull = ConvexHull(img_reshape)
-	
-	output_rawhull_obj_file = path + "-rawconvexhull.obj"
-	write_convexhull_into_obj_file(og_hull, output_rawhull_obj_file)		
-	
-	# clipped already
-	mesh = simplified_convex_hull(output_rawhull_obj_file, num_colors)
-
-
-	import gco
-	
-	# unary.shape = (486, 864, 6) ideally!
-	unary = np.zeros((image_arr.shape[0], image_arr.shape[1], num_colors))
-	
-	for i in range(num_colors):
-		dist_square = (mesh.vs[i] - image_arr) ** 2
-		unary[:, :, i] = np.sum(dist_square, axis = 2)
-	
-	# pairwise.shape = (6, 6) ideally!
-	pairwise = (1 - np.eye(num_colors)) * 0.5
-	
-	labels = gco.cut_grid_graph_simple(unary, pairwise, n_iter=100)
-	labels = list(labels)
-	
-	for i in range(len(labels)):
-		labels[i] = mesh.vs[labels[i]]
-	
-	img_seg = np.asfarray(labels).reshape(image_arr.shape[0], image_arr.shape[1], 3)
-	
-	return img_seg
-	
-
-	'''
-	# store the neighbors
-	"""2-dimensional list"""
-	neighbor_list = []
-	for i in range(num_colors):
-		neighbor_list.append(mesh.vertex_vertex_neighbors(i))
-
-	# two-way discrete color blendings
-	candidate_colors = mesh.vs
-	pos_iter = num_colors
-	for i in range(num_colors):
-		for j in range(i+1, num_colors):
-			# add to candidate colors
-			candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j]))
-			candidate_colors = np.vstack((candidate_colors, .25*candidate_colors[i] + .75*candidate_colors[j]))
-	
-			# update neighbor list for the "first" blended color in original vertex's neighbor list
-			neighbor_list[i].append(pos_iter)
-			neighbor_list[j].append(pos_iter)	
-			
-			# update neighbor list for the "second" blended color in original vertex's neighbor list
-			neighbor_list[i].append(pos_iter + 1)
-			neighbor_list[j].append(pos_iter + 1)
-			
-			# add in neighbor list for our newly blended colors
-			"""A lerp, so adjacent linear blended color will be a neighbor as well."""
-			neighbor_list.append([i, j, pos_iter+1])
-			neighbor_list.append([i, j, pos_iter])
-			
-			pos_iter += 2
-	'''
-	
-	
-
-def main():
-	import argparse
-	parser = argparse.ArgumentParser( description = 'Posterization.' )
-	parser.add_argument( 'input_image', help = 'The path to the input image.' )
-	parser.add_argument( 'output_path', help = 'Where to save the output image.' )
-	args = parser.parse_args()
-	
-	img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.
-	img_seg = posterization(args.input_image, img_arr, 6)
-	Image.fromarray(np.clip(0, 255, img_seg*255.).astype(np.uint8)).save(args.output_path)
-
-if __name__ == '__main__':
-	main()
