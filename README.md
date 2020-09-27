@@ -18,4 +18,4 @@ Install potrace:
 
 Example run:
 
-    python posterization.py images/Kobe.png images/post_Kobe.png
+    python posterization.py images/Kobe.png images/post_Kobe.png <output_vectorized_image_name>
