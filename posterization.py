@@ -8,9 +8,60 @@ from math import *
 from trimesh import TriMesh
 import cvxopt
 import potrace
+import cairo
+
+# Vectorzied a raster image
+class Vectorized_image(object):
+	def __init__(self, filename, width, height, boundaries, final_colors):
+		self.surface = cairo.SVGSurface(filename + '.svg', height, width)
+		cr = cairo.Context(self.surface)
+		self.cr = cr
+		
+		# set up background
+		cr.scale(height, width)
+		cr.set_line_width(0.01)
+
+		cr.rectangle(0, 0, 1, 1)
+		cr.set_source_rgb(1, 1, 1) # white
+		cr.fill()
+
+		self.draw_dest(cr, height, width, boundaries, final_colors)
+
+		self.surface.write_to_png(filename + '.png')
+		cr.show_page()
+		self.surface.finish()
+		
+	def draw_dest(self, cr, height, width, boundaries, final_colors):
+		print("Start vectorizing images...")
+
+		#print(len(final_colors))
+		
+		# Iterate over path curves
+		for i in range(len(boundaries)):
+			for curve in boundaries[i]:
+				#print ("start_point =", curve.start_point)
+				cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
+				for segment in curve:
+					#print (segment)
+					end_point_x, end_point_y = segment.end_point
+					
+					if segment.is_corner:
+						c_x, c_y = segment.c
+						cr.line_to(c_x/height, c_y/width)
+					else:
+						c1_x, c1_y = segment.c1
+						c2_x, c2_y = segment.c2
+						cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+						end_point_x/height, end_point_y/width)
+						
+				cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
+				cr.close_path()
+				cr.set_source_rgb(final_colors[i][0], final_colors[i][1], final_colors[i][2])
+				cr.fill()
 
 
 
+# convexhull file I/O
 def write_convexhull_into_obj_file(hull, output_rawhull_obj_file):
 	hvertices=hull.points[hull.vertices]
 	points_index=-1*np.ones(hull.points.shape[0],dtype=np.int32)
@@ -29,8 +80,6 @@ def write_convexhull_into_obj_file(hull, output_rawhull_obj_file):
 		n=np.cross(p1-p0,p2-p0)
 		if np.dot(normals,n)<0:
 			hfaces[index][[1,0]]=hfaces[index][[0,1]]
-			
-			
 	
 	myfile=open(output_rawhull_obj_file,'w')
 	for index in range(hvertices.shape[0]):
@@ -38,6 +87,7 @@ def write_convexhull_into_obj_file(hull, output_rawhull_obj_file):
 	for index in range(hfaces.shape[0]):
 		myfile.write('f '+str(hfaces[index][0])+' '+str(hfaces[index][1])+' '+str(hfaces[index][2])+'\n')
 	myfile.close()
+
 
 
 def compute_tetrahedron_volume(face, point):
@@ -91,8 +141,7 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
 			c+=n
 
 
-########### now use cvxopt.solvers.lp solver
-		
+		########### now use cvxopt.solvers.lp solver
 		A=-np.asfarray(A)
 		b=-np.asfarray(b)
 		
@@ -106,16 +155,13 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
 		
 
 			######## using objective function to calculate (volume) or (distance to face) as priority.
-#             volume=res['primal objective']+b.sum()
-			
+			#volume=res['primal objective']+b.sum()
 		
 			####### manually compute volume as priority,so no relation with objective function
 			tetra_volume_list=[]
 			for each_face in old_face_list:
 				tetra_volume_list.append(compute_tetrahedron_volume(each_face,newpoint))
 			volume=np.asarray(tetra_volume_list).sum()
-			
-
 
 			temp_list1.append((count, volume, vertex1, vertex2))
 			temp_list2.append(newpoint)
@@ -207,9 +253,7 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
 			
 			## Tell the mesh to regenerate the half-edge data structure.
 			mesh.topology_changed()
-
 			# print (len(mesh.vs))
-	
 		return mesh
 
 def simplified_convex_hull(output_rawhull_obj_file, num_colors):
@@ -218,9 +262,7 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
 	
 	N = 500
 	for i in range(N):
-
 		#print ('loop:', i)
-		
 		old_num = len(mesh.vs)
 		mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
 		mesh = remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,option=2)
@@ -329,29 +371,32 @@ def get_binary(neighbor_list, weight_list, candidate_colors, option=1):
 	#print(binary)
 	return binary
 	
-def get_num_colors_used(colors):
+def get_unoverlap_labels(colors):
 	# option 1 means list
 	visited = []
 	for label in colors:
 		if label not in visited:
 			visited.append(label)
-	return len(visited)
+	return visited
 	
 	
 def get_boundaries(labels, img_h, img_w):
 	
 	boundaries = []
-	num_label = get_num_colors_used(labels)
+	
+	# get unoverlapping label
+	unoverlap_labels = get_unoverlap_labels(labels)
+	num_label = len(unoverlap_labels)
 	print('Final number of colors being used: ', num_label)
 	
 	# loop through all the labels and convert each label into a bitmap in each step
-	for i in range(num_label):
+	for label in unoverlap_labels:
 		spec_label = np.copy(labels)
-		for j in range(spec_label.size):
-			if spec_label[j] == i:
-				spec_label[j] = 1
-			else:
-				spec_label[j] = 0
+		for i in range(spec_label.size):
+			if spec_label[i] == label:   # if the pixel == label, we mark it
+				spec_label[i] = 1
+			else:						 # else: we do not trace it!
+				spec_label[i] = 0
 		spec_label_pos = spec_label.reshape(img_h, img_w)
 		
 		# Create a bitmap from the array
@@ -361,7 +406,7 @@ def get_boundaries(labels, img_h, img_w):
 		path = bmp.trace()
 		boundaries.append(path)
 		
-	return boundaries
+	return boundaries, unoverlap_labels
 
 
 def posterization(path, image_arr, num_colors):
@@ -376,6 +421,9 @@ def posterization(path, image_arr, num_colors):
 	'''
 	#1 and #2
 	'''
+	
+	width = image_arr.shape[0]
+	height = image_arr.shape[1]
 	
 	# reshape image array into scipy.convexhull
 	img_reshape = image_arr.reshape((-1,3))
@@ -410,19 +458,24 @@ def posterization(path, image_arr, num_colors):
 	# get final labels from the optimization	
 	labels = gco.cut_grid_graph_simple(unary, binary, n_iter=100, algorithm='swap') # alpha-beta-swap
 	
+	
 	# convert labels to RGBs
 	post_img = np.zeros((labels.size, 3))
 	for i in range(labels.size):
 		post_img[i, :] = np.array(candidate_colors[labels[i]])
 	
 	# reconstruct segmented images
-	post_img = np.asfarray(post_img).reshape(image_arr.shape[0], image_arr.shape[1], 3)
+	post_img = np.asfarray(post_img).reshape(width, height, 3)
 	
 	########
 	########
-	boundaries = get_boundaries(labels, image_arr.shape[0], image_arr.shape[1])
+	boundaries, unoverlap_labels = get_boundaries(labels, width, height)
 	
-	return post_img
+	final_colors = []
+	for label in unoverlap_labels:
+		final_colors.append(candidate_colors[label])
+		
+	return post_img, boundaries, final_colors
 	
 	
 	
@@ -432,63 +485,16 @@ def main():
 	parser = argparse.ArgumentParser( description = 'Posterization.' )
 	parser.add_argument( 'input_image', help = 'The path to the input image.' )
 	parser.add_argument( 'output_path', help = 'Where to save the output image.' )
+	parser.add_argument( 'output_vectorized', help = 'The path to the output vectorized image.' )
 	args = parser.parse_args()
 
 	img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.
-	post_img = posterization(args.input_image, img_arr, 6)
+	post_img, boundaries, final_colors = posterization(args.input_image, img_arr, 6)
 	Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8)).save(sys.argv[2])
+	
+	# width: 486, height: 864 for Kobe's example
+	Vectorized_image(args.output_vectorized, img_arr.shape[0], img_arr.shape[1], boundaries, final_colors)
 
 if __name__ == '__main__':
 	main()
 	
-	
-
-
-
-
-"""
-convert the 2d list of neighbors into two 1d numpy ndarrays s1, s2.
-Each element in s1 should be smaller than the corresponding element in s2.
-In our cases, number of ways of blendings will be 2.
-"""
-'''
-def neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways):
-	# compute total number of nodes in the graph
-	num_nodes = num_colors + num_of_ways * (num_colors * (num_colors - 1)) / 2
-	
-	# may be slow, but easy to write for now
-	neighbors_np = []
-	for i in range(len(neighbor_list)):
-		neighbor_list[i].sort()
-		for j in range(len(neighbor_list[i])):
-			if i < neighbor_list[i][j]:
-				neighbors_np.append([i, neighbor_list[i][j]])
-	
-	neighbors_np = np.array(neighbors_np)
-	s1 = neighbors_np[:, 0]
-	s2 = neighbors_np[:, 1]
-	#print(len(s1), len(s2))
-	
-	return s1, s2
-	
-
-def multi_label_opt(neighbors_list, num_colors, num_of_ways):
-	import gco
-	gc = gco.GCO()
-	
-	#Create a general graph with specified number of sites and labels.
-	gc.create_general_graph(len(neighbors_list), num_colors)
-	
-	"""
-	Set unary potentials, unary should be a matrix of size
-	nb_sites x nb_labels. unary can be either integers or float.
-	"""
-	gc.set_data_cost(np.array([[8, 1], [8, 2], [2, 8]]))
-	
-	# set up neighbor relationships
-	# parameters: neighbor node 1, neighbor node 2, weights
-	s1, s2 = neighbor_list_convert_to_ndarrays(neighbor_list, num_colors, num_of_ways)
-	gc.set_all_neighbors(s1, s2, np.ones(len(s1)))
-	
-	return labels
-'''
