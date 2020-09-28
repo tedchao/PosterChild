@@ -19,7 +19,12 @@ Install potrace:
 Install cairo:
     
     pip install pycairo
+    
+To convert svg into pdf, simply install cairosvg and run:
+    
+    pip3 install cairosvg
+    cairosvg <image.svg> -o <image.pdf>
 
 Example run:
 
-    python posterization.py images/Kobe.png images/post_Kobe.png [output_vectorized_image_name]
+    python posterization.py images/Kobe.png posterized_images/Kobe.png vectorized_images/Kobe
