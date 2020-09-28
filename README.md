@@ -16,6 +16,10 @@ Install potrace:
     cd pypotrace
     pip install .
 
+Install cairo:
+    
+    pip install pycairo
+
 Example run:
 
     python posterization.py images/Kobe.png images/post_Kobe.png [output_vectorized_image_name]
