@@ -9,6 +9,7 @@ from trimesh import TriMesh
 import cvxopt
 import potrace
 import cairo
+import random
 
 # Vectorzied a raster image
 class Vectorized_image(object):
@@ -19,7 +20,7 @@ class Vectorized_image(object):
         
         # set up background
         cr.scale(height, width)
-        cr.set_line_width(0.01)
+        cr.set_line_width(1)
 
         cr.rectangle(0, 0, 1, 1)
         cr.set_source_rgb(1, 1, 1) # white
@@ -54,9 +55,9 @@ class Vectorized_image(object):
                         cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
                         end_point_x/height, end_point_y/width)
                         
-                cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
+                #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
                 cr.close_path()
-                cr.set_source_rgb(final_colors[i][0], final_colors[i][1], final_colors[i][2])
+                cr.set_source_rgba(final_colors[i][0], final_colors[i][1], final_colors[i][2], 1)
                 cr.fill()
 
 
@@ -332,6 +333,7 @@ def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors):
     return candidate_colors, neighbor_list, np.array(weight_list)
 
 
+# Unary term in minimizing energy function
 def get_unary(image_arr, candidate_colors):
     
     # unary.shape = (486, 864, 6) ideally!
@@ -343,7 +345,8 @@ def get_unary(image_arr, candidate_colors):
         
     return unary
     
-    
+
+# Binary term in minimizing energy function
 def get_binary(neighbor_list, weight_list, candidate_colors, option=1):
     
     # 1 if neighbor, (inf) if not neighbor, diag(binary) = 0
@@ -368,9 +371,9 @@ def get_binary(neighbor_list, weight_list, candidate_colors, option=1):
                 if i != j:
                     binary[i][j] = 0.5 * np.linalg.norm((weight_list[i] - weight_list[j]), ord=1)
                     
-    #print(binary)
     return binary
-    
+
+# Get nonrepeated labels
 def get_unoverlap_labels(colors):
     # option 1 means list
     visited = []
@@ -379,7 +382,8 @@ def get_unoverlap_labels(colors):
             visited.append(label)
     return visited
     
-    
+
+# Trace the boundaries of different color regions
 def get_boundaries(labels, img_h, img_w):
     
     boundaries = []
@@ -409,6 +413,26 @@ def get_boundaries(labels, img_h, img_w):
     return boundaries, unoverlap_labels
 
 
+# visualize additive mixing
+# input: per-pixel weights list
+def get_additive_mixing_layers(add_mix_layers, width, height, palette, color):
+    
+    # select painting color first
+    paint = palette[color]
+    
+    # initialize layer
+    img_add_mix = np.zeros([width, height, 4])
+    add_mix_layers = add_mix_layers.reshape(width, height, 6)
+    for i in range(width):
+        for j in range(height):
+            img_add_mix[i, j, :3] = paint
+            img_add_mix[i, j, 3] = add_mix_layers[i, j, color]
+        
+    return img_add_mix
+
+
+
+
 def posterization(path, image_arr, num_colors):
     '''
     Given:
@@ -417,10 +441,6 @@ def posterization(path, image_arr, num_colors):
     '''
     assert len(image_arr.shape) == 3
     assert num_colors == int(num_colors) and num_colors > 0
-
-    '''
-    #1 and #2
-    '''
     
     width = image_arr.shape[0]
     height = image_arr.shape[1]
@@ -460,9 +480,14 @@ def posterization(path, image_arr, num_colors):
     
     
     # convert labels to RGBs
+    # visualize additive mixing layers
+    
     post_img = np.zeros((labels.size, 3))
+    add_mix_layers = np.zeros((labels.size, num_colors))
     for i in range(labels.size):
         post_img[i, :] = np.array(candidate_colors[labels[i]])
+        add_mix_layers[i, :] = np.array(weight_list[labels[i]]) 
+
     
     # reconstruct segmented images
     post_img = np.asfarray(post_img).reshape(width, height, 3)
@@ -474,8 +499,9 @@ def posterization(path, image_arr, num_colors):
     final_colors = []
     for label in unoverlap_labels:
         final_colors.append(candidate_colors[label])
+    
         
-    return post_img, boundaries, final_colors
+    return post_img, boundaries, final_colors, add_mix_layers, mesh.vs # mesh.vs is palette
     
     
     
@@ -484,16 +510,24 @@ def main():
     import argparse
     parser = argparse.ArgumentParser( description = 'Posterization.' )
     parser.add_argument( 'input_image', help = 'The path to the input image.' )
-    parser.add_argument( 'output_path', help = 'Where to save the output image.' )
-    parser.add_argument( 'output_vectorized', help = 'The path to the output vectorized image.' )
+    parser.add_argument( 'output_posterized_path', help = 'Where to save the output posterized image.' )
+    parser.add_argument( 'output_vectorized_path', help = 'The path to the output vectorized image.' )
+    parser.add_argument( 'output_add_mix_path', help = 'The path to the output additive-mixing image.' )
     args = parser.parse_args()
 
-    img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.
-    post_img, boundaries, final_colors = posterization(args.input_image, img_arr, 6)
-    Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8)).save(sys.argv[2])
+    img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.    #print(img_arr[1,1,:])
+    post_img, boundaries, final_colors, add_mix_layers, palette = posterization(args.input_image, img_arr, 6)
+    
+    #test = 255 * np.ones([post_img.shape[0], post_img.shape[1], post_img.shape[2]+1])
+    #test[:,:,:3] = post_img
+    Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8), 'RGB').save(sys.argv[2])
     
     # width: 486, height: 864 for Kobe's example
-    Vectorized_image(args.output_vectorized, img_arr.shape[0], img_arr.shape[1], boundaries, final_colors)
+    Vectorized_image(args.output_vectorized_path, img_arr.shape[0], img_arr.shape[1], boundaries, final_colors)
+    
+    # visualize additive mixing layer
+    img_add_mix = get_additive_mixing_layers(add_mix_layers, img_arr.shape[0], img_arr.shape[1], palette, color=5)
+    Image.fromarray(np.clip(0, 255, img_add_mix*255.).astype(np.uint8), 'RGBA').save(sys.argv[4])
 
 if __name__ == '__main__':
     main()
