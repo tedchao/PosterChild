@@ -25,12 +25,13 @@ class Vectorized_image(object):
         cr.rectangle(0, 0, 1, 1)
         cr.set_source_rgb(1, 1, 1) # white
         cr.fill()
-
-        self.draw_dest(cr, height, width, boundaries, final_colors)
+        
+        self.draw_dest_test(cr, height, width, boundaries, final_colors)
 
         self.surface.write_to_png(filename + '.png')
         cr.show_page()
         self.surface.finish()
+    
         
     def draw_dest(self, cr, height, width, boundaries, final_colors):
         print("Start vectorizing images...")
@@ -58,6 +59,61 @@ class Vectorized_image(object):
                 #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
                 cr.close_path()
                 cr.set_source_rgba(final_colors[i][0], final_colors[i][1], final_colors[i][2], 1)
+                cr.fill()
+    
+    def draw_dest_test(self, cr, height, width, boundaries, final_colors):
+        print("Start vectorizing images...")
+
+        #print(len(final_colors))
+        
+        # Iterate over path curves
+        for i in range(len(boundaries)):
+            painted = []
+            for curve in boundaries[i]:
+                #print ("start_point =", curve.start_point)
+                cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
+                
+                # draw parent curve
+                if curve not in painted:
+                    for segment in curve:
+                        #print (segment)
+                        end_point_x, end_point_y = segment.end_point
+                        
+                        if segment.is_corner:
+                            c_x, c_y = segment.c
+                            cr.line_to(c_x/height, c_y/width)
+                        else:
+                            c1_x, c1_y = segment.c1
+                            c2_x, c2_y = segment.c2
+                            cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+                            end_point_x/height, end_point_y/width)
+                    cr.close_path()
+                
+                # if the parent have children, then keep drawing children
+                if curve.children:
+                    for child in curve.children:
+                        painted.append(child)
+                        cr.move_to(child.start_point[0]/height, child.start_point[1]/width)
+                        for segment in child:
+                            #print (segment)
+                            end_point_x, end_point_y = segment.end_point
+                            
+                            if segment.is_corner:
+                                c_x, c_y = segment.c
+                                cr.line_to(c_x/height, c_y/width)
+                            else:
+                                c1_x, c1_y = segment.c1
+                                c2_x, c2_y = segment.c2
+                                cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+                                end_point_x/height, end_point_y/width)
+                        cr.close_path()
+                                               
+                #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
+                cr.set_source_rgba(final_colors[i][0], final_colors[i][1], final_colors[i][2], 1)
+                
+                # This means that any area that is inside an odd number of subpaths will be filled
+                #, any area that is inside an even number of subpaths will be unfilled.
+                cr.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
                 cr.fill()
 
 
@@ -512,23 +568,102 @@ def main():
     parser.add_argument( 'input_image', help = 'The path to the input image.' )
     parser.add_argument( 'output_posterized_path', help = 'Where to save the output posterized image.' )
     parser.add_argument( 'output_vectorized_path', help = 'The path to the output vectorized image.' )
-    parser.add_argument( 'output_add_mix_path', help = 'The path to the output additive-mixing image.' )
+    #parser.add_argument( 'output_add_mix_path', help = 'The path to the output additive-mixing image.' )
     args = parser.parse_args()
 
     img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.    #print(img_arr[1,1,:])
     post_img, boundaries, final_colors, add_mix_layers, palette = posterization(args.input_image, img_arr, 6)
     
-    #test = 255 * np.ones([post_img.shape[0], post_img.shape[1], post_img.shape[2]+1])
-    #test[:,:,:3] = post_img
     Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8), 'RGB').save(sys.argv[2])
     
     # width: 486, height: 864 for Kobe's example
     Vectorized_image(args.output_vectorized_path, img_arr.shape[0], img_arr.shape[1], boundaries, final_colors)
-    
+    '''
     # visualize additive mixing layer
     img_add_mix = get_additive_mixing_layers(add_mix_layers, img_arr.shape[0], img_arr.shape[1], palette, color=5)
     Image.fromarray(np.clip(0, 255, img_add_mix*255.).astype(np.uint8), 'RGBA').save(sys.argv[4])
-
+    '''
 if __name__ == '__main__':
     main()
+
+
+
+'''
+# helper functions for annulus_sort
+# check if the sub_curve is inside the curve
+def check_annulus(self, sub_curve, curve):
     
+    x, y = sub_curve.start_point[0], sub_curve.start_point[1]
+    
+    control_x = []
+    control_y = []
+    for segment in curve:
+        end_point_x, end_point_y = segment.end_point
+        control_x.append(end_point_x)
+        control_y.append(end_point_y)
+    
+    if min(control_x) <= x <= max(control_x) and min(control_y) <= y <= max(control_y):
+        return True
+   
+    return False
+    
+# Checking if there is a sub-curve inside the curve
+def annulus_sort(self, curve_and_colors):
+    
+    # buuble sort based on annulus-check
+    n = len(curve_and_colors)
+    for i in range(n-1):
+        for j in range(0, n-1-i):
+            if self.check_annulus(curve_and_colors[j][0], curve_and_colors[j+1][0]):
+                curve_and_colors[j], curve_and_colors[j+1] = \
+                 curve_and_colors[j+1], curve_and_colors[j] 
+                
+    return curve_and_colors
+
+# For getting the coloring orders correct
+def reorder_coloring(self, boundaries, final_colors):
+    curve_and_colors = []
+    for i in range(len(boundaries)):
+        for curve in boundaries[i]:
+            curve_and_colors.append([curve, final_colors[i]])
+    
+    return self.annulus_sort(curve_and_colors)
+    
+    
+def vectorize_regions(self, cr, height, width, ordered_curve_and_colors):
+    print("Start vectorizing images...")
+    
+    for region in ordered_curve_and_colors:
+        curve = region[0]
+        color = region[1]
+        print ("start_point =", curve.start_point)
+        cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
+        for segment in curve:
+            print (segment)
+            end_point_x, end_point_y = segment.end_point
+            
+            if segment.is_corner:
+                c_x, c_y = segment.c
+                cr.line_to(c_x/height, c_y/width)
+            else:
+                c1_x, c1_y = segment.c1
+                c2_x, c2_y = segment.c2
+                cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+                end_point_x/height, end_point_y/width)
+                
+        #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
+        cr.close_path()
+        cr.set_source_rgba(color[0], color[1], color[2], 1)
+        cr.fill()
+            
+def has_children(self, boundaries, final_colors):
+    parent_bd = []
+    for i in range(len(boundaries)):
+        boundaries[i] = [boundaries[i], final_colors[i]]
+        for region in boundaries[i]:
+            curve = region[0]
+            color = region[1]
+            if curve.children:
+                parent_bd.append(boundaries.pop(i))
+            
+'''
