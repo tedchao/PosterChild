@@ -26,42 +26,13 @@ class Vectorized_image(object):
         cr.set_source_rgb(1, 1, 1) # white
         cr.fill()
         
-        self.draw_dest_test(cr, height, width, boundaries, final_colors)
+        self.draw_dest(cr, height, width, boundaries, final_colors)
 
         self.surface.write_to_png(filename + '.png')
         cr.show_page()
         self.surface.finish()
     
-        
     def draw_dest(self, cr, height, width, boundaries, final_colors):
-        print("Start vectorizing images...")
-
-        #print(len(final_colors))
-        
-        # Iterate over path curves
-        for i in range(len(boundaries)):
-            for curve in boundaries[i]:
-                #print ("start_point =", curve.start_point)
-                cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
-                for segment in curve:
-                    #print (segment)
-                    end_point_x, end_point_y = segment.end_point
-                    
-                    if segment.is_corner:
-                        c_x, c_y = segment.c
-                        cr.line_to(c_x/height, c_y/width)
-                    else:
-                        c1_x, c1_y = segment.c1
-                        c2_x, c2_y = segment.c2
-                        cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
-                        end_point_x/height, end_point_y/width)
-                        
-                #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
-                cr.close_path()
-                cr.set_source_rgba(final_colors[i][0], final_colors[i][1], final_colors[i][2], 1)
-                cr.fill()
-    
-    def draw_dest_test(self, cr, height, width, boundaries, final_colors):
         print("Start vectorizing images...")
 
         #print(len(final_colors))
@@ -71,10 +42,10 @@ class Vectorized_image(object):
             painted = []
             for curve in boundaries[i]:
                 #print ("start_point =", curve.start_point)
-                cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
                 
                 # draw parent curve
                 if curve not in painted:
+                    cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
                     for segment in curve:
                         #print (segment)
                         end_point_x, end_point_y = segment.end_point
@@ -336,7 +307,7 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
     return mesh
 
 
-def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors):
+def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors, num_blend):
     
     blends = [[0.5, 0.5], [0.25, 0.75], [0.75, 0.25]]
     # store the neighbors
@@ -350,41 +321,54 @@ def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors):
     pos_iter = num_colors
     for i in range(num_colors):
         for j in range(i+1, num_colors):
-            # add to candidate colors
-            candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j]))
-            candidate_colors = np.vstack((candidate_colors, .25*candidate_colors[i] + .75*candidate_colors[j]))
-            candidate_colors = np.vstack((candidate_colors, .75*candidate_colors[i] + .25*candidate_colors[j]))
             
-            # update neighbor list for the "first" blended color in original vertex's neighbor list
-            #neighbor_list[i].append(pos_iter)
-            #neighbor_list[j].append(pos_iter)
+            if num_blend == 3:
+                # add to candidate colors
+                candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j]))
+                candidate_colors = np.vstack((candidate_colors, .25*candidate_colors[i] + .75*candidate_colors[j]))
+                candidate_colors = np.vstack((candidate_colors, .75*candidate_colors[i] + .25*candidate_colors[j]))
+                    
+                # update neighbor list for the "second" blended color in original vertex's neighbor list
+                neighbor_list[i].append(pos_iter + 1)
+                #neighbor_list[j].append(pos_iter + 1)	
                 
-            # update neighbor list for the "second" blended color in original vertex's neighbor list
-            neighbor_list[i].append(pos_iter + 1)
-            #neighbor_list[j].append(pos_iter + 1)	
+                # update neighbor list for the "third" blended color in original vertex's neighbor list
+                #neighbor_list[i].append(pos_iter + 2)
+                neighbor_list[j].append(pos_iter + 2)	
+                
+
+                # add in neighbor list for our newly blended colors
+                """A lerp, so adjacent linear blended color will be a neighbor as well."""
+                neighbor_list.append([pos_iter+1, pos_iter+2])     # first color
+                neighbor_list.append([i, pos_iter])
+                neighbor_list.append([j, pos_iter])
+                
+                # add palette weight for each color to weight list
+                for s in range(3):
+                    weights = num_colors * [0]
+                    weights[i] = blends[s][0]
+                    weights[j] = blends[s][1]
+                    weight_list.append(weights)
+                
+                pos_iter += 3
             
-            # update neighbor list for the "third" blended color in original vertex's neighbor list
-            #neighbor_list[i].append(pos_iter + 2)
-            neighbor_list[j].append(pos_iter + 2)	
-            
-            # add in neighbor list for our newly blended colors
-            """A lerp, so adjacent linear blended color will be a neighbor as well."""
-            #neighbor_list.append([i, j])
-            
-            # add in neighbor list for our newly blended colors
-            """A lerp, so adjacent linear blended color will be a neighbor as well."""
-            neighbor_list.append([pos_iter+1, pos_iter+2])     # first color
-            neighbor_list.append([i, pos_iter])
-            neighbor_list.append([j, pos_iter])
-            
-            # add palette weight for each color to weight list
-            for s in range(3):
+            if num_blend == 1:
+                # add to candidate colors
+                candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j]))
+                
+                # update neighbor list for the "first" blended color in original vertex's neighbor list
+                neighbor_list[i].append(pos_iter)
+                neighbor_list[j].append(pos_iter)
+                
+                neighbor_list.append([i, j])
+                
+                # add weight list
                 weights = num_colors * [0]
-                weights[i] = blends[s][0]
-                weights[j] = blends[s][1]
+                weights[i] = blends[0][0]
+                weights[j] = blends[0][1]        # 50-50 blend
                 weight_list.append(weights)
-            
-            pos_iter += 3
+                
+                pos_iter += 1
     
     return candidate_colors, neighbor_list, np.array(weight_list)
 
@@ -449,8 +433,18 @@ def get_boundaries(labels, img_h, img_w):
     num_label = len(unoverlap_labels)
     print('Final number of colors being used: ', num_label)
     
+    layer = np.ones([img_h, img_w])
+    
     # loop through all the labels and convert each label into a bitmap in each step
     for label in unoverlap_labels:
+        
+        # Create a bitmap from the array
+        bmp = potrace.Bitmap(layer)
+
+        # Trace the bitmap
+        path = bmp.trace(turdsize=0, alphamax=1.3, opticurve=0, opttolerance=0)
+        boundaries.append(path)
+        
         spec_label = np.copy(labels)
         for i in range(spec_label.size):
             if spec_label[i] == label:   # if the pixel == label, we mark it
@@ -458,15 +452,10 @@ def get_boundaries(labels, img_h, img_w):
             else:						 # else: we do not trace it!
                 spec_label[i] = 0
         spec_label_pos = spec_label.reshape(img_h, img_w)
-        
-        # Create a bitmap from the array
-        bmp = potrace.Bitmap(spec_label_pos)
+        layer -= spec_label_pos
 
-        # Trace the bitmap
-        path = bmp.trace()
-        boundaries.append(path)
-        
     return boundaries, unoverlap_labels
+
 
 
 # visualize additive mixing
@@ -478,7 +467,7 @@ def get_additive_mixing_layers(add_mix_layers, width, height, palette, color):
     
     # initialize layer
     img_add_mix = np.zeros([width, height, 4])
-    add_mix_layers = add_mix_layers.reshape(width, height, 6)
+    add_mix_layers = add_mix_layers.reshape(width, height, len(palette))
     for i in range(width):
         for j in range(height):
             img_add_mix[i, j, :3] = paint
@@ -489,7 +478,7 @@ def get_additive_mixing_layers(add_mix_layers, width, height, palette, color):
 
 
 
-def posterization(path, image_arr, num_colors):
+def posterization(path, image_arr, num_colors, num_blend=1):
     '''
     Given:
         image_arr: An n-rows by m-columns array of RGB colors.
@@ -521,7 +510,7 @@ def posterization(path, image_arr, num_colors):
     
     # get blended colors and neighbor list
     candidate_colors, neighbor_list, weight_list = \
-    get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors)
+    get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors, num_blend)
     
     #print(weight_list)
     
@@ -572,23 +561,65 @@ def main():
     args = parser.parse_args()
 
     img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.    #print(img_arr[1,1,:])
-    post_img, boundaries, final_colors, add_mix_layers, palette = posterization(args.input_image, img_arr, 6)
+    
+    palette_num = 6
+    num_blend = 3        # only 1 or 3 for now
+    post_img, boundaries, final_colors, add_mix_layers, palette = posterization(args.input_image, img_arr, palette_num, num_blend)
     
     Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8), 'RGB').save(sys.argv[2])
     
     # width: 486, height: 864 for Kobe's example
     Vectorized_image(args.output_vectorized_path, img_arr.shape[0], img_arr.shape[1], boundaries, final_colors)
+    
     '''
     # visualize additive mixing layer
     img_add_mix = get_additive_mixing_layers(add_mix_layers, img_arr.shape[0], img_arr.shape[1], palette, color=5)
     Image.fromarray(np.clip(0, 255, img_add_mix*255.).astype(np.uint8), 'RGBA').save(sys.argv[4])
     '''
+    
+    
 if __name__ == '__main__':
     main()
 
 
 
+
+
+
+
+
 '''
+##### TEMP CODE ####
+
+   def draw_dest(self, cr, height, width, boundaries, final_colors):
+        print("Start vectorizing images...")
+
+        #print(len(final_colors))
+        
+        # Iterate over path curves
+        for i in range(len(boundaries)):
+            for curve in boundaries[i]:
+                #print ("start_point =", curve.start_point)
+                cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
+                for segment in curve:
+                    #print (segment)
+                    end_point_x, end_point_y = segment.end_point
+                    
+                    if segment.is_corner:
+                        c_x, c_y = segment.c
+                        cr.line_to(c_x/height, c_y/width)
+                    else:
+                        c1_x, c1_y = segment.c1
+                        c2_x, c2_y = segment.c2
+                        cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+                        end_point_x/height, end_point_y/width)
+                        
+                #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
+                cr.close_path()
+                cr.set_source_rgba(final_colors[i][0], final_colors[i][1], final_colors[i][2], 1)
+                cr.fill()
+
+
 # helper functions for annulus_sort
 # check if the sub_curve is inside the curve
 def check_annulus(self, sub_curve, curve):
