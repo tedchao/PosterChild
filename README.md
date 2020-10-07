@@ -20,7 +20,7 @@ Install cairo:
     
     pip install pycairo
     
-Install scikit-image for visualization:
+Install scikit-image for visualizing palette:
     
     pip install scikit-image
     
