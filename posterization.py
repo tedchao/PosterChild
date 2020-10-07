@@ -11,6 +11,8 @@ import potrace
 import cairo
 import random
 
+import simplepalettes
+
 # Vectorzied a raster image
 class Vectorized_image(object):
     def __init__(self, filename, width, height, boundaries, final_colors):
@@ -309,7 +311,9 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
 
 def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors, num_blend):
     
-    blends = [[0.5, 0.5], [0.25, 0.75], [0.75, 0.25]]
+    #blends = [[0.5, 0.5], [0.25, 0.75], [0.75, 0.25]]
+    
+    blends = [[0.20, 0.80], [0.80, 0.20]]
     # store the neighbors
     """2-dimensional list"""
     neighbor_list = []
@@ -324,26 +328,31 @@ def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors, num_bl
             
             if num_blend == 3:
                 # add to candidate colors
-                candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j]))
-                candidate_colors = np.vstack((candidate_colors, .25*candidate_colors[i] + .75*candidate_colors[j]))
-                candidate_colors = np.vstack((candidate_colors, .75*candidate_colors[i] + .25*candidate_colors[j]))
+                #candidate_colors = np.vstack((candidate_colors, .5*candidate_colors[i] + .5*candidate_colors[j])
+                candidate_colors = np.vstack((candidate_colors, .20*candidate_colors[i] + .80*candidate_colors[j]))
+                candidate_colors = np.vstack((candidate_colors, .80*candidate_colors[i] + .20*candidate_colors[j]))
                     
                 # update neighbor list for the "second" blended color in original vertex's neighbor list
-                neighbor_list[i].append(pos_iter + 1)
-                #neighbor_list[j].append(pos_iter + 1)	
+                # neighbor_list[i].append(pos_iter + 2)
+                neighbor_list[j].append(pos_iter + 1)
+                
                 
                 # update neighbor list for the "third" blended color in original vertex's neighbor list
-                #neighbor_list[i].append(pos_iter + 2)
-                neighbor_list[j].append(pos_iter + 2)	
+                # neighbor_list[j].append(pos_iter + 1)
+                neighbor_list[i].append(pos_iter)
                 
 
                 # add in neighbor list for our newly blended colors
                 """A lerp, so adjacent linear blended color will be a neighbor as well."""
-                neighbor_list.append([pos_iter+1, pos_iter+2])     # first color
-                neighbor_list.append([i, pos_iter])
+                # neighbor_list.append([pos_iter+1, pos_iter+2])     # first color
+                # neighbor_list.append([j, pos_iter])
+                # neighbor_list.append([i, pos_iter])
+                neighbor_list.append([i, pos_iter + 1])
                 neighbor_list.append([j, pos_iter])
                 
+
                 # add palette weight for each color to weight list
+                '''
                 for s in range(3):
                     weights = num_colors * [0]
                     weights[i] = blends[s][0]
@@ -351,6 +360,16 @@ def get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors, num_bl
                     weight_list.append(weights)
                 
                 pos_iter += 3
+                '''
+                for s in range(2):
+                    weights = num_colors * [0]
+                    weights[i] = blends[s][0]
+                    weights[j] = blends[s][1]
+                    weight_list.append(weights)
+                
+                pos_iter += 2
+                
+                
             
             if num_blend == 1:
                 # add to candidate colors
@@ -421,6 +440,16 @@ def get_unoverlap_labels(colors):
         if label not in visited:
             visited.append(label)
     return visited
+
+
+def get_drawing_order(labels, unoverlap_labels):
+    unique, counts = np.unique(labels, return_counts=True)
+    label_counts = np.vstack((unique, counts)).T
+    label_counts = label_counts[label_counts[:,1].argsort()]
+    labels_sort = list(label_counts[:, 0])
+    labels_sort.reverse()
+    
+    return labels_sort
     
 
 # Trace the boundaries of different color regions
@@ -433,8 +462,11 @@ def get_boundaries(labels, img_h, img_w):
     num_label = len(unoverlap_labels)
     print('Final number of colors being used: ', num_label)
     
-    layer = np.ones([img_h, img_w])
     
+    # sort the label based on count to draw the less-number-of-colors area first
+    unoverlap_labels = get_drawing_order(labels, unoverlap_labels)   
+    
+    layer = np.ones([img_h, img_w])
     # loop through all the labels and convert each label into a bitmap in each step
     for label in unoverlap_labels:
         
@@ -442,7 +474,8 @@ def get_boundaries(labels, img_h, img_w):
         bmp = potrace.Bitmap(layer)
 
         # Trace the bitmap
-        path = bmp.trace(turdsize=0, alphamax=1.3, opticurve=0, opttolerance=0)
+        #path = bmp.trace(turdsize=10, alphamax=1.3, opticurve=0, opttolerance=0)
+        path = bmp.trace()
         boundaries.append(path)
         
         spec_label = np.copy(labels)
@@ -512,7 +545,7 @@ def posterization(path, image_arr, num_colors, num_blend=1):
     candidate_colors, neighbor_list, weight_list = \
     get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors, num_blend)
     
-    #print(weight_list)
+    # print(neighbor_list)
     
     # Multi-label optimization 
     import gco
@@ -544,8 +577,8 @@ def posterization(path, image_arr, num_colors, num_blend=1):
     final_colors = []
     for label in unoverlap_labels:
         final_colors.append(candidate_colors[label])
-    
         
+    
     return post_img, boundaries, final_colors, add_mix_layers, mesh.vs # mesh.vs is palette
     
     
@@ -565,8 +598,10 @@ def main():
     palette_num = 6
     num_blend = 3        # only 1 or 3 for now
     post_img, boundaries, final_colors, add_mix_layers, palette = posterization(args.input_image, img_arr, palette_num, num_blend)
-    
     Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8), 'RGB').save(sys.argv[2])
+    
+    timg = simplepalettes.palette2swatch(palette)
+    simplepalettes.save_image_to_file(timg, args.output_vectorized_path + '-' + 'palette.png')
     
     # width: 486, height: 864 for Kobe's example
     Vectorized_image(args.output_vectorized_path, img_arr.shape[0], img_arr.shape[1], boundaries, final_colors)
