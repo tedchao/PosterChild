@@ -20,6 +20,10 @@ Install cairo:
     
     pip install pycairo
     
+Install scikit-image for visualization:
+    
+    pip install scikit-image
+    
 To convert svg into pdf, simply install cairosvg and run:
     
     pip3 install cairosvg
