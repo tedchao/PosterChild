@@ -35,11 +35,78 @@ class Vectorized_image(object):
         cr.set_source_rgb(1, 1, 1) # white
         cr.fill()
         
-        self.draw_dest(cr, height, width, boundaries, final_colors)
+        #self.draw_dest(cr, height, width, boundaries, final_colors)
+        paths_and_colors = self.order_boundaries(boundaries, final_colors)
+        self.draw_dest_1(cr, height, width, paths_and_colors)
 
         self.surface.write_to_png(filename + '.png')
         cr.show_page()
         self.surface.finish()
+    
+    def order_boundaries(self, boundaries, final_colors):
+        parents = []
+        children = []
+        for i in range(len(boundaries)):
+            for curve in boundaries[i]:
+                if curve.children:
+                    parents.append([curve, final_colors[i]])
+                else:
+                    children.append([curve, final_colors[i]])
+
+        parents.extend(children)
+        return parents    # draw parents first
+    
+    def draw_dest_1(self, cr, height, width, paths_and_colors):
+        print("Start vectorizing images...")
+        
+        painted = []
+        for curve, color in paths_and_colors:
+            # draw parent curve
+            if curve not in painted:
+                cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
+                for segment in curve:
+                    #print (segment)
+                    end_point_x, end_point_y = segment.end_point
+                    
+                    if segment.is_corner:
+                        c_x, c_y = segment.c
+                        cr.line_to(c_x/height, c_y/width)
+                    else:
+                        c1_x, c1_y = segment.c1
+                        c2_x, c2_y = segment.c2
+                        cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+                        end_point_x/height, end_point_y/width)
+                cr.close_path()
+            
+            # if the parent have children, then keep drawing children
+            if curve.children:
+                for child in curve.children:
+                    painted.append(child)
+                    cr.move_to(child.start_point[0]/height, child.start_point[1]/width)
+                    for segment in child:
+                        #print (segment)
+                        end_point_x, end_point_y = segment.end_point
+                        
+                        if segment.is_corner:
+                            c_x, c_y = segment.c
+                            cr.line_to(c_x/height, c_y/width)
+                        else:
+                            c1_x, c1_y = segment.c1
+                            c2_x, c2_y = segment.c2
+                            cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+                            end_point_x/height, end_point_y/width)
+                    cr.close_path()
+                                           
+            #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
+            cr.set_source_rgba(color[0], color[1], color[2], 1)
+            
+            # This means that any area that is inside an odd number of subpaths will be filled
+            #, any area that is inside an even number of subpaths will be unfilled.
+            cr.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+            cr.fill()
+
+        
+        
     
     def draw_dest(self, cr, height, width, boundaries, final_colors):
         print("Start vectorizing images...")
@@ -51,7 +118,6 @@ class Vectorized_image(object):
             painted = []
             for curve in boundaries[i]:
                 #print ("start_point =", curve.start_point)
-                
                 # draw parent curve
                 if curve not in painted:
                     cr.move_to(curve.start_point[0]/height, curve.start_point[1]/width)
@@ -480,11 +546,29 @@ def get_boundaries(labels, img_w, img_h):
     # sort the label based on count to draw the less-number-of-colors area first
     unoverlap_labels = get_drawing_order(labels, unoverlap_labels)   
     
-    layer = np.ones([img_w, img_h])
+    #layer = np.ones([img_w, img_h])
     # loop through all the labels and convert each label into a bitmap in each step
     for label in unoverlap_labels:
-        layer_dil_1 = morphology.binary_dilation(layer)
+        #layer_dil_1 = morphology.binary_dilation(layer)
+        '''
+        # Create a bitmap from the array
+        bmp = potrace.Bitmap(layer_dil_1)
+
+        # Trace the bitmap
+        #path = bmp.trace(turdsize=10, alphamax=1.3, opticurve=0, opttolerance=0)
+        path = bmp.trace()
+        boundaries.append(path)
+        '''
+        spec_label = np.copy(labels)
+        for i in range(spec_label.size):
+            if spec_label[i] == label:   # if the pixel == label, we mark it
+                spec_label[i] = 1
+            else:						 # else: we do not trace it!
+                spec_label[i] = 0
+        spec_label_pos = spec_label.reshape(img_w, img_h)
+        #layer -= spec_label_pos
         
+        layer_dil_1 = morphology.binary_dilation(spec_label_pos)
         # Create a bitmap from the array
         bmp = potrace.Bitmap(layer_dil_1)
 
@@ -493,15 +577,6 @@ def get_boundaries(labels, img_w, img_h):
         path = bmp.trace()
         boundaries.append(path)
         
-        spec_label = np.copy(labels)
-        for i in range(spec_label.size):
-            if spec_label[i] == label:   # if the pixel == label, we mark it
-                spec_label[i] = 1
-            else:						 # else: we do not trace it!
-                spec_label[i] = 0
-        spec_label_pos = spec_label.reshape(img_w, img_h)
-        layer -= spec_label_pos
-
     return boundaries, unoverlap_labels
 
 
