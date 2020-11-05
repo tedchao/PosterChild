@@ -21,6 +21,112 @@ import simplepalettes
 import extract_brush
 
 
+# Vectorzied a raster image
+class Vectorized_image( object ):
+    def __init__( self, filename, width, height, boundaries, final_colors ):
+        self.surface = cairo.SVGSurface( filename + '.svg', height, width )
+        cr = cairo.Context( self.surface )
+        self.cr = cr
+        
+        # set up background
+        cr.scale( height, width )
+        cr.set_line_width( 1 )
+
+        cr.rectangle( 0, 0, 1, 1 )
+        cr.set_source_rgb( 1, 1, 1 ) # white
+        cr.fill()
+        
+        self.draw_dest( cr, height, width, boundaries, final_colors )
+        
+        self.surface.write_to_png( filename + '.png' )
+        cr.show_page()
+        self.surface.finish()
+    
+    def draw_dest( self, cr, height, width, boundaries, final_colors ):
+        print( "Start vectorizing images..." )
+
+        #print(len(final_colors))
+        
+        # Iterate over path curves
+        for i in range( len( boundaries ) ):
+            painted = []
+            for curve in boundaries[i]:
+                #print ("start_point =", curve.start_point)
+                # draw parent curve
+                if curve not in painted:
+                    cr.move_to( curve.start_point[0] / height, curve.start_point[1] / width )
+                    for segment in curve:
+                        #print (segment)
+                        end_point_x, end_point_y = segment.end_point
+                        
+                        if segment.is_corner:
+                            c_x, c_y = segment.c
+                            cr.line_to( c_x / height, c_y / width )
+                        else:
+                            c1_x, c1_y = segment.c1
+                            c2_x, c2_y = segment.c2
+                            cr.curve_to( c1_x / height, c1_y / width, c2_x / height, c2_y / width, \
+                            end_point_x / height, end_point_y / width)
+                    cr.close_path()
+                
+                # if the parent have children, then keep drawing children
+                if curve.children:
+                    for child in curve.children:
+                        painted.append(child)
+                        cr.move_to(child.start_point[0]/height, child.start_point[1]/width)
+                        for segment in child:
+                            #print (segment)
+                            end_point_x, end_point_y = segment.end_point
+                            
+                            if segment.is_corner:
+                                c_x, c_y = segment.c
+                                cr.line_to(c_x/height, c_y/width)
+                            else:
+                                c1_x, c1_y = segment.c1
+                                c2_x, c2_y = segment.c2
+                                cr.curve_to(c1_x/height, c1_y/width, c2_x/height, c2_y/width, \
+                                end_point_x/height, end_point_y/width)
+                        cr.close_path()
+                                               
+                #cr.line_to(curve.start_point[0]/height, curve.start_point[1]/width)
+                cr.set_source_rgba(final_colors[i][0], final_colors[i][1], final_colors[i][2], 1)
+                
+                # This means that any area that is inside an odd number of subpaths will be filled
+                #, any area that is inside an even number of subpaths will be unfilled.
+                cr.set_fill_rule(cairo.FILL_RULE_EVEN_ODD)
+                cr.fill()
+
+# Trace the boundaries of different color regions
+def get_boundaries(labels, unoverlap_labels, img_w, img_h):
+    
+    boundaries = []
+    
+    num_label = len(unoverlap_labels)
+    
+    #unoverlap_labels = get_drawing_order(labels, unoverlap_labels) 
+    layer = np.ones([img_w, img_h])
+    # loop through all the labels and convert each label into a bitmap in each step
+    for label in unoverlap_labels:
+        
+        # Create a bitmap from the array
+        bmp = potrace.Bitmap(layer)
+
+        # Trace the bitmap
+        path = bmp.trace(alphamax=1.3)
+        boundaries.append(path)
+        
+        spec_label = np.copy(labels)
+        for i in range(spec_label.size):
+            if spec_label[i] == label:   # if the pixel == label, we mark it
+                spec_label[i] = 1
+            else:						 # else: we do not trace it!
+                spec_label[i] = 0
+        spec_label_pos = spec_label.reshape(img_w, img_h)
+        layer -= spec_label_pos
+        
+    return boundaries
+
+
 # convexhull file I/O
 def write_convexhull_into_obj_file(hull, output_rawhull_obj_file):
     hvertices=hull.points[hull.vertices]
@@ -449,102 +555,114 @@ def convertRGBXY(img, width, height):
 
 
 # look at the weight list to see the nonzero index are the same
-def share_same_palette(w1, w2):
-    w1_nonzero = [i for i, e in enumerate(w1) if e != 0]
-    w2_nonzero = [i for i, e in enumerate(w2) if e != 0]
-    return w1_nonzero == w2_nonzero
+def get_num_clusters(weight_ls):
+    nonzero_indices = []
+    for weights in weight_ls:
+        w_nonzero = [i for i, e in enumerate(weights) if e != 0]
+        if w_nonzero not in nonzero_indices:
+            nonzero_indices.append(w_nonzero)
+    return len(nonzero_indices)
 
-def posterization(path, image_arr, num_colors, num_blend=1):
+def posterization( path, img_og, image_arr, num_colors, num_blend = 1 ):
     '''
     Given:
         image_arr: An n-rows by m-columns array of RGB colors.
         num_colors: number of ink colors for the poster.
     '''
-    assert len(image_arr.shape) == 3
-    assert num_colors == int(num_colors) and num_colors > 0
+    assert len( image_arr.shape ) == 3
+    assert num_colors == int( num_colors ) and num_colors > 0
     
     width = image_arr.shape[0]
     height = image_arr.shape[1]
     
     # reshape image array into scipy.convexhull
-    img_reshape = image_arr.reshape((-1,3))
-    og_hull = ConvexHull(img_reshape)
+    img_reshape = image_arr.reshape( ( -1, 3 ) )
+    og_hull = ConvexHull( img_reshape )
     output_rawhull_obj_file = path + "-rawconvexhull.obj"
-    write_convexhull_into_obj_file(og_hull, output_rawhull_obj_file)		
+    write_convexhull_into_obj_file( og_hull, output_rawhull_obj_file )		
     
     # get simplified convexhull
     # clipped already
-    mesh = simplified_convex_hull(output_rawhull_obj_file, num_colors)
+    mesh = simplified_convex_hull( output_rawhull_obj_file, num_colors )
 
     # initialize weight list
     weight_list = []
-    for i in range(num_colors):
+    for i in range( num_colors ):
         weight = num_colors * [0]
         weight[i] = 1
-        weight_list.append(weight)
+        weight_list.append( weight )
     
     
     # get blended colors and neighbor list
-    num_blend=3
+    num_blend = 3
     candidate_colors, neighbor_list, weight_list_sep = \
-    get_candidate_colors_and_neighbor_list(mesh, weight_list, num_colors, num_blend)
+    get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_blend ) 
     
     
     # Multi-label optimization 
     import gco
-    print('start multi-label optimization...')
-    unary = get_unary(image_arr, candidate_colors)
-    binary = get_binary(neighbor_list, weight_list_sep, candidate_colors, 0.1, 2)
+    print( 'start multi-label optimization...' )
+    unary = get_unary( img_og, candidate_colors )
+    binary = get_binary( neighbor_list, weight_list_sep, candidate_colors, 0.1, 2 )
         
     # get final labels from the optimization	
-    labels = gco.cut_grid_graph_simple(unary, binary, n_iter=100, algorithm='swap') # alpha-beta-swap
+    labels = gco.cut_grid_graph_simple( unary, binary, n_iter = 100, algorithm='swap' ) # alpha-beta-swap
 
     # locally optimize weights
-    unoverlap_labels = get_unoverlap_labels(labels)
-    weight_list_sep = optimize_weight(labels, unoverlap_labels, weight_list_sep, mesh.vs, image_arr)
+    unoverlap_labels = get_unoverlap_labels( labels )
+    weight_list_sep = optimize_weight( labels, unoverlap_labels, weight_list_sep, mesh.vs, image_arr )
     
     
     # compute final colors based on our optimized weights
     final_colors = []
     for label in unoverlap_labels:
-        w = np.array(weight_list_sep[label])
+        w = np.array( weight_list_sep[label] )
         color = w @ mesh.vs
-        final_colors.append(list(color))	
-    '''
+        final_colors.append( list( color ) )	
     
-    final_colors = []
-    for label in unoverlap_labels:
-        final_colors.append(candidate_colors[label])
-    '''
-    print('Final colors being used:', len(final_colors))
+    print( 'Final colors being used after MLO:', len( final_colors ) ) 
     
     # convert labels to RGBs
     # visualize additive mixing layers
-    post_img = np.zeros((labels.size, 3))
-    add_mix_layers = np.zeros((labels.size, num_colors))
-    for i in range(labels.size):
-        post_img[i, :] = np.array(final_colors[unoverlap_labels.index(labels[i])])
-        add_mix_layers[i, :] = np.array(weight_list_sep[unoverlap_labels.index(labels[i])])
+    post_img = np.zeros( ( labels.size, 3 ) )
+    add_mix_layers = np.zeros( ( labels.size, num_colors ) )
+    for i in range( labels.size ):
+        post_img[i, :] = np.array( final_colors[unoverlap_labels.index( labels[i] )] )
+        add_mix_layers[i, :] = np.array( weight_list_sep[unoverlap_labels.index( labels[i] )] )
     
     # reconstruct segmented images
     #post_img = np.asfarray(post_img).reshape(width, height, 3)
     
     
-    #t = extract_brush.compute_stroke(image_arr, post_img)
     # K-means on RGBXY
+    num_cluster = get_num_clusters( weight_list_sep )
+    if num_cluster < len( final_colors ) - 10:
+        num_cluster = len( final_colors ) - 10
     
-    
-    img_rgbxy = convertRGBXY(post_img, width, height)
-    kmeans = KMeans(n_clusters=len(final_colors)-10, random_state=0).fit(img_rgbxy)
+    img_rgbxy = convertRGBXY( post_img, width, height )
+    kmeans = KMeans( n_clusters=num_cluster, random_state=0 ).fit( img_rgbxy )
     kmeans_labels = kmeans.labels_
     clusters = kmeans.cluster_centers_
-    post_img = np.zeros((labels.size, 3))
-    for i in range(kmeans_labels.size):
-        post_img[i, :] = clusters[kmeans_labels[i]][:3]
-    post_img = np.asfarray(post_img).reshape(width, height, 3)
     
+    print( 'Final colors being used after Kmeans RGBXY:', clusters.shape[0] )
     
-    return post_img, final_colors, add_mix_layers, mesh.vs # mesh.vs is palette
+    post_img = np.zeros( ( labels.size, 3 ) )
+    for i in range( kmeans_labels.size ):
+        color = clusters[kmeans_labels[i]][:3]
+        post_img[i, :] = color
+    post_img = np.asfarray( post_img ).reshape( width, height, 3 )
+    
+    # get final colors after Kmeans RGBXY
+    unoverlap_labels_kmeans = get_unoverlap_labels( kmeans_labels )
+    final_colors_Kmeans = []
+    for label in unoverlap_labels_kmeans:
+        color = clusters[label][:3]
+        final_colors_Kmeans.append( color )
+    
+    # get traced boundaries
+    # boundaries = get_boundaries(kmeans_labels, unoverlap_labels_kmeans, width, height)
+    
+    return post_img, final_colors_Kmeans, add_mix_layers, mesh.vs # mesh.vs is palette
 
 
 
@@ -579,13 +697,15 @@ def main():
     parser.add_argument( 'input_image', help = 'The path to the input image.' )
     parser.add_argument( 'output_posterized_path', help = 'Where to save the output posterized image.' )
     parser.add_argument( 'output_add_mix_path', help = 'The path to the output additive-mixing image.' )
+    #parser.add_argument( 'output_vectorized_path', help = 'The path to the output vectorized image.' )
     args = parser.parse_args()
 
-    img_arr = np.asfarray(Image.open(args.input_image).convert('RGB'))/255.    #print(img_arr[1,1,:])
+    img_arr = np.asfarray( Image.open(args.input_image).convert( 'RGB' ) ) / 255.    #print(img_arr[1,1,:])
+    img_arr_og = np.copy( img_arr )
     
     num_clusters = 20
-    img_arr_re = img_arr.reshape((-1,3))
-    img_arr_cluster = k_means_cluster(num_clusters, img_arr_re, img_arr.shape[0], img_arr.shape[1])
+    img_arr_re = img_arr.reshape( ( -1, 3 ) )
+    img_arr_cluster = k_means_cluster( num_clusters, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
     
 
     start = time.time()
@@ -594,19 +714,22 @@ def main():
     num_blend = 3        # only 1 or 3 for now
     
     post_img, final_colors, add_mix_layers, palette = \
-    posterization(args.input_image, img_arr_cluster, palette_num, num_blend)
+    posterization( args.input_image, img_arr_og, img_arr_cluster, palette_num, num_blend )
     
-    Image.fromarray(np.clip(0, 255, post_img*255.).astype(np.uint8), 'RGB').save(args.output_posterized_path + '.jpg')
+    Image.fromarray( np.clip( 0, 255, post_img*255. ).astype( np.uint8 ), 'RGB' ).save( args.output_posterized_path + '.jpg' )
  
-    timg = simplepalettes.palette2swatch(palette)
-    final_colors = np.array(final_colors)
-    simplepalettes.save_image_to_file(np.clip(0, 255, timg*255.).astype(np.uint8), args.output_posterized_path + '-' + 'palette.png', clobber=True)
-    simplepalettes.save_palette2wedges(final_colors, args.output_posterized_path + '-' + 'all_colors.png', clobber=True)
+    timg = simplepalettes.palette2swatch( palette )
+    final_colors = np.array( final_colors )
+    simplepalettes.save_image_to_file( np.clip( 0, 255, timg*255. ).astype( np.uint8 ), args.output_posterized_path + '-' + 'palette.png', clobber = True )
+    simplepalettes.save_palette2wedges( final_colors, args.output_posterized_path + '-' + 'all_colors.png', clobber = True )
     
-    visualize_add_mix(add_mix_layers, img_arr.shape[0], img_arr.shape[1], palette, args.output_add_mix_path)
+    visualize_add_mix( add_mix_layers, img_arr.shape[0], img_arr.shape[1], palette, args.output_add_mix_path )
+    
+    # width: 486, height: 864 for Kobe's example
+    #Vectorized_image( args.output_vectorized_path, img_arr.shape[0], img_arr.shape[1], boundaries, final_colors )
     
     end = time.time()
-    print("Finished. Total time: ", end - start)
+    print( "Finished. Total time: ", end - start )
     
 if __name__ == '__main__':
     main()
