@@ -31,4 +31,4 @@ To convert svg into pdf, simply install cairosvg and run:
 
 Example run:
 
-    python posterization.py images/Kobe.png posterized_images/Kobe.png vectorized_images/Kobe additive_mixing_layers/Kobe0.png
+    python posterization.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
