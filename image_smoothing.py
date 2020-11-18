@@ -4,8 +4,9 @@ import numpy as np
 import cv2
 import time
 import matplotlib.pyplot as plt
+from numba import jit
 
-
+@jit(nopython=True)
 def get_median_color( window ):
     
     channel1 = window[:, :, 0]
@@ -19,7 +20,8 @@ def get_median_color( window ):
     color[2] = np.median( channel3 )
     
     return color
-    
+
+@jit(nopython=True)
 def medianBlur_truncate( img, dft_img, window_size ):
     margin = int( ( window_size - 1 ) / 2 )
 
@@ -36,7 +38,6 @@ def medianBlur_truncate( img, dft_img, window_size ):
     print( 'Blurred!')
     return filtered_img
         
-
 def main():
     import argparse
     parser = argparse.ArgumentParser( description = 'Smooth posterized image.' )
