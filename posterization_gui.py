@@ -562,6 +562,7 @@ def posterized_pipline( path, img_arr, img_og, num_clusters = 20, num_blend = 3,
     
 def select_image():
     global panel, path, tk_input_image, tk_switch, tk_posterized_image
+    global tk_num_clusters, tk_palette_size, tk_num_blend
     
     # assignment on global variables
     path = tkinter.filedialog.askopenfilename()
@@ -573,13 +574,30 @@ def select_image():
     if panel is None:
         panel = Label( image = tk_image )
         panel.image = tk_image
-        panel.pack()
+        panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
+        
     else:
         tk_posterized_image = None
         panel.configure( image = tk_image )
         panel.image = tk_image
-        
 
+    c_kms = Label( root, text = 'Numbers of cluster for K-means: ')
+    tk_num_clusters = Entry(root)
+    c_kms.grid(row=1, column=0)
+    tk_num_clusters.grid(row=2, column=0)
+    
+    p_sz = Label( root, text = 'Numbers of palette size: ')
+    tk_palette_size = Entry(root)
+    p_sz.grid(row=3, column=0)
+    tk_palette_size.grid(row=4, column=0)
+    
+    n_b = Label( root, text = 'Numbers of blending ways (3 or 5): ')
+    tk_num_blend = Entry(root)
+    n_b.grid(row=5, column=0)
+    tk_num_blend.grid(row=6, column=0)
+
+    
+    
 def posterize_button():
     global tk_posterized_image
     
@@ -590,13 +608,30 @@ def posterize_button():
         # true image to work on
         img_arr = np.asfarray( PIL.Image.open( path ).convert( 'RGB' ) ) / 255. 
         img_arr_og = np.copy( img_arr )
+    
         
-        posterized_image = posterized_pipline( path, img_arr, img_arr_og )
+        if tk_num_clusters.get():
+            num_clusters = int( tk_num_clusters.get() )
+        else:
+            num_clusters = 20
+        
+        if tk_palette_size.get():
+            palette_size = int( tk_palette_size.get() )
+        else:
+            palette_size = 6
+        
+        if tk_num_blend.get():
+            num_blend = int( tk_num_blend.get() )
+        else:
+            num_blend = 3
+        
+        
+        posterized_image = posterized_pipline( path, img_arr, img_arr_og, num_clusters, num_blend, palette_size )
         
         tk_switch = 1
         tk_posterized_image = posterized_image
         panel.image.paste( posterized_image )
-        panel.pack()
+        panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
     
 
 def compare():
@@ -612,11 +647,11 @@ def compare():
         else:
             if tk_switch == 0:
                 panel.image.paste( tk_input_image )
-                panel.pack()
+                panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
                 tk_switch = 1
             else:
                 panel.image.paste( tk_posterized_image )
-                panel.pack()
+                panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
                 tk_switch = 0
 
 
@@ -641,7 +676,8 @@ root.title( 'Posterization' )
 panel = None
 tk_switch = 0
 tk_posterized_image = None
-    
+
+'''
 btn1 = Button(root, text="Select an image", command = select_image)
 btn1.pack(side="bottom", fill="both", expand="yes")
 
@@ -653,6 +689,14 @@ btn3.pack(side="bottom", fill="both", expand="yes")
 
 btn4 = Button(root, text="Press to save posterized image", command=savefile)
 btn4.pack(side="bottom", fill="both", expand="yes")
+'''
+
+f1 = Frame(root)
+btn1 = Button(f1, text="Select an image", command = select_image).pack(side=TOP, fill="both", expand="yes")
+btn2 = Button(f1, text="Posterized!", command = posterize_button).pack(side=TOP, fill="both", expand="yes")
+btn3 = Button(f1, text="Press to compare", command = compare).pack(side=TOP, fill="both", expand="yes")
+btn4 = Button(f1, text="Save posterized image", command = savefile).pack(side=TOP, fill="both", expand="yes")
+f1.grid(row=0, column=0)
 
 # kick off the GUI
 root.mainloop()
