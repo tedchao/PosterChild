@@ -3,6 +3,8 @@ import numpy as np
 import PIL.Image
 import PIL.ImageTk
 
+import gco
+
 from skimage import color
 from sklearn.cluster import KMeans
 from scipy.optimize import *
@@ -47,31 +49,52 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
         
     for i in range( num_colors ):
         for j in range( i+1, num_colors ):
-            # add to candidate colors
-            candidate_colors = np.vstack( ( candidate_colors, a * candidate_colors[i] + (1-a) * candidate_colors[j] ) ) # middle blend
-            candidate_colors = np.vstack( ( candidate_colors, b * candidate_colors[i] + (1-b) * candidate_colors[j] ) ) # close to j
-            candidate_colors = np.vstack( ( candidate_colors, c * candidate_colors[i] + (1-c) * candidate_colors[j] ) ) # close to i
+            if num_blend == 3:
+                # add to candidate colors
+                candidate_colors = np.vstack( ( candidate_colors, a * candidate_colors[i] + (1-a) * candidate_colors[j] ) ) # middle blend
+                candidate_colors = np.vstack( ( candidate_colors, b * candidate_colors[i] + (1-b) * candidate_colors[j] ) ) # close to j
+                candidate_colors = np.vstack( ( candidate_colors, c * candidate_colors[i] + (1-c) * candidate_colors[j] ) ) # close to i
+                    
+                neighbor_list[i].append( pos_iter + 2 ) 
+                neighbor_list[j].append( pos_iter + 1 )
+                    
+                neighbor_list.append( [pos_iter+1, pos_iter+2] )     # first color
+                neighbor_list.append( [j, pos_iter] )
+                neighbor_list.append( [i, pos_iter] )
+                    
+                if i in neighbor_list[j]:
+                    neighbor_list[i].remove( j )
+                    neighbor_list[j].remove( i )
+                    
+                # add palette weight for each color to weight list
+                for s in range( 3 ):
+                    weights = num_colors * [0]
+                    weights[i] = blends[s][0]
+                    weights[j] = blends[s][1]
+                    weight_list.append( weights )
+                    
+                pos_iter += 3
                 
-            neighbor_list[i].append( pos_iter + 2 ) 
-            neighbor_list[j].append( pos_iter + 1 )
+            if num_blend == 1:
                 
-            neighbor_list.append( [pos_iter+1, pos_iter+2] )     # first color
-            neighbor_list.append( [j, pos_iter] )
-            neighbor_list.append( [i, pos_iter] )
+                # add to candidate colors
+                candidate_colors = np.vstack( ( candidate_colors, a * candidate_colors[i] + ( 1 - a ) * candidate_colors[j] ) ) # middle blend
                 
-            if i in neighbor_list[j]:
-                neighbor_list[i].remove( j )
-                neighbor_list[j].remove( i )
+                neighbor_list[i].append( pos_iter )
+                neighbor_list[j].append( pos_iter )
                 
-            # add palette weight for each color to weight list
-            for s in range( 3 ):
+                neighbor_list.append( [i, j] )
+                
+                if i in neighbor_list[j]:
+                    neighbor_list[i].remove( j )
+                    neighbor_list[j].remove( i )
+                
                 weights = num_colors * [0]
-                weights[i] = blends[s][0]
-                weights[j] = blends[s][1]
+                weights[i] = blends[0][0]
+                weights[j] = blends[0][1]
                 weight_list.append( weights )
+                pos_iter += 1
                 
-            pos_iter += 3
-            
     return candidate_colors, neighbor_list, np.array( weight_list )
     
     
@@ -373,7 +396,6 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         '''
         
         # Multi-label optimization 
-        import gco
         print( 'start multi-label optimization...' )
         
         unary = get_unary( image_og, candidate_colors )
@@ -588,7 +610,7 @@ def select_image():
     p_sz.grid(row=22, column=0)
     tk_palette_size.grid(row=23, column=0)
     
-    n_b = Label( root, text = 'Numbers of blending ways (3 or 5): ')
+    n_b = Label( root, text = 'Numbers of blending ways (1 or 3): ')
     tk_num_blend = Entry(root)
     n_b.grid(row=24, column=0)
     tk_num_blend.grid(row=25, column=0)
