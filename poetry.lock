@@ -1,4 +1,24 @@
 [[package]]
+name = "altgraph"
+version = "0.17"
+description = "Python graph (network) package"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "autograd"
+version = "1.3"
+description = "Efficiently computes derivatives of numpy code."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+future = ">=0.15.2"
+numpy = ">=1.12"
+
+[[package]]
 name = "cairocffi"
 version = "1.2.0"
 description = "cffi-based cairo bindings for Python"
@@ -69,6 +89,14 @@ optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*"
 
 [[package]]
+name = "future"
+version = "0.18.2"
+description = "Clean single-source support for Python 3 and 2"
+category = "main"
+optional = false
+python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
+
+[[package]]
 name = "gco-wrapper"
 version = "3.0.3"
 description = "pyGCO: a python wrapper for the graph cuts package"
@@ -116,6 +144,25 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "llvmlite"
+version = "0.35.0rc3"
+description = "lightweight wrapper around basic LLVM functionality"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
+name = "macholib"
+version = "1.14"
+description = "Mach-O header analysis and editing"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+altgraph = ">=0.15"
+
+[[package]]
 name = "matplotlib"
 version = "3.3.2"
 description = "Python plotting package"
@@ -157,6 +204,18 @@ pyyaml = ["pyyaml"]
 scipy = ["scipy"]
 
 [[package]]
+name = "numba"
+version = "0.51.2"
+description = "compiling Python code using LLVM"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+llvmlite = ">=0.34.0.dev0,<0.35"
+numpy = ">=1.15"
+
+[[package]]
 name = "numpy"
 version = "1.19.4"
 description = "NumPy is the fundamental package for array computing with Python."
@@ -174,6 +233,17 @@ python-versions = ">=3.6"
 
 [package.dependencies]
 numpy = ">=1.19.3"
+
+[[package]]
+name = "pefile"
+version = "2019.4.18"
+description = "Python PE parsing module"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+future = "*"
 
 [[package]]
 name = "pillow"
@@ -198,6 +268,33 @@ description = "C parser in Python"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[[package]]
+name = "pyinstaller"
+version = "4.1"
+description = "PyInstaller bundles a Python application and all its dependencies into a single package."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+altgraph = "*"
+macholib = {version = ">=1.8", markers = "sys_platform == \"darwin\""}
+pefile = {version = ">=2017.8.1", markers = "sys_platform == \"win32\""}
+pyinstaller-hooks-contrib = ">=2020.6"
+pywin32-ctypes = {version = ">=0.2.0", markers = "sys_platform == \"win32\""}
+
+[package.extras]
+encryption = ["tinyaes (>=1.0.0)"]
+hook_testing = ["pytest (>=2.7.3)", "execnet (>=1.5.0)", "psutil"]
+
+[[package]]
+name = "pyinstaller-hooks-contrib"
+version = "2020.10"
+description = "Community maintained hooks for PyInstaller"
+category = "dev"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "pyparsing"
@@ -242,6 +339,14 @@ python-versions = ">=3.5"
 
 [package.dependencies]
 numpy = ">=1.13.3"
+
+[[package]]
+name = "pywin32-ctypes"
+version = "0.2.0"
+description = ""
+category = "dev"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "scikit-image"
@@ -327,9 +432,16 @@ all = ["imagecodecs (>=2020.2.18)", "matplotlib (>=3.1)", "lxml"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "970581941278e2dcefa4d732261e567b94a23118f389362406d09e0653c88c41"
+content-hash = "c66fe21513dbe43e3e7d8b4f61616ede983d98be4215b85e65427512fead6c54"
 
 [metadata.files]
+altgraph = [
+    {file = "altgraph-0.17-py2.py3-none-any.whl", hash = "sha256:c623e5f3408ca61d4016f23a681b9adb100802ca3e3da5e718915a9e4052cebe"},
+    {file = "altgraph-0.17.tar.gz", hash = "sha256:1f05a47122542f97028caf78775a095fbe6a2699b5089de8477eb583167d69aa"},
+]
+autograd = [
+    {file = "autograd-1.3.tar.gz", hash = "sha256:a15d147577e10de037de3740ca93bfa3b5a7cdfbc34cfb9105429c3580a33ec4"},
+]
 cairocffi = [
     {file = "cairocffi-1.2.0.tar.gz", hash = "sha256:9a979b500c64c8179fec286f337e8fe644eca2f2cd05860ce0b62d25f22ea140"},
 ]
@@ -439,6 +551,9 @@ decorator = [
     {file = "decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760"},
     {file = "decorator-4.4.2.tar.gz", hash = "sha256:e3a62f0520172440ca0dcc823749319382e377f37f140a0b99ef45fecb84bfe7"},
 ]
+future = [
+    {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
+]
 gco-wrapper = [
     {file = "gco-wrapper-3.0.3.tar.gz", hash = "sha256:f910e3df8e828183083fa179397263c05d741e8d42215c1eb8dc004d6a2c6695"},
 ]
@@ -484,6 +599,27 @@ kiwisolver = [
     {file = "kiwisolver-1.3.1-pp36-pypy36_pp73-win32.whl", hash = "sha256:401a2e9afa8588589775fe34fc22d918ae839aaaf0c0e96441c0fdbce6d8ebe6"},
     {file = "kiwisolver-1.3.1.tar.gz", hash = "sha256:950a199911a8d94683a6b10321f9345d5a3a8433ec58b217ace979e18f16e248"},
 ]
+llvmlite = [
+    {file = "llvmlite-0.35.0rc3-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:7b3b8b059f0449907c0376c7cecf6e0b4bdacc13797ab9f3cc64bb602e31c0a8"},
+    {file = "llvmlite-0.35.0rc3-cp36-cp36m-manylinux2010_i686.whl", hash = "sha256:2d61fe18cf7b27f06e7663bd94d330d909e12a7595f220c7bff0f43ea271460c"},
+    {file = "llvmlite-0.35.0rc3-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:ecd9ba96592fb5f3a9b1645cc7c73b8a1f2e74573f2afe1af15f8d13556e6a4b"},
+    {file = "llvmlite-0.35.0rc3-cp36-cp36m-win32.whl", hash = "sha256:d80e892bf1278f6bc92e892e92f4b9170e02a1dfd9bbd618e23e76c47a1be3f7"},
+    {file = "llvmlite-0.35.0rc3-cp36-cp36m-win_amd64.whl", hash = "sha256:ea727570ce8ca621959df9fb39bb8cff103d9817bd5c9ed5980607fa3b67d0c4"},
+    {file = "llvmlite-0.35.0rc3-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:ef23850e8720b52f3d5d5dd86566a9351f1d81d0c06cdb92f21c364aab53f4a8"},
+    {file = "llvmlite-0.35.0rc3-cp37-cp37m-manylinux2010_i686.whl", hash = "sha256:b1faf7c3ca9d3a5c95cc47682a3efab1a9f64e2862a5570d922e6ec216e21c74"},
+    {file = "llvmlite-0.35.0rc3-cp37-cp37m-manylinux2010_x86_64.whl", hash = "sha256:6d27b8c12c03dacd84e04db6c4bcf848d4aa7cbba51ee0625e46f7ced89ac603"},
+    {file = "llvmlite-0.35.0rc3-cp37-cp37m-win32.whl", hash = "sha256:c8748823e3901833c8aaec89a46d38e302a43a2ffa944c2edcbd60ef7bf521ee"},
+    {file = "llvmlite-0.35.0rc3-cp37-cp37m-win_amd64.whl", hash = "sha256:4cae79abf76b9ed801a0a27863c94c844712605868ff6802a2f402051ddf15c4"},
+    {file = "llvmlite-0.35.0rc3-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:77a645b4ea84267fd497e45db531237dea097e2a0c3f0fa8ce66fbe6cd022924"},
+    {file = "llvmlite-0.35.0rc3-cp38-cp38-manylinux2010_i686.whl", hash = "sha256:fd0d534ded3a757611a2334bc9b1f5d2415bb34fc177793805ed4eac91cce0a5"},
+    {file = "llvmlite-0.35.0rc3-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:b3ac274cb3bd3caecf8fdfd15c99f293b187a8ea8be2c7706fb6a32d9fa4e284"},
+    {file = "llvmlite-0.35.0rc3-cp38-cp38-win32.whl", hash = "sha256:ee4cb5fe63b547cdfd77184e1d8d3992ede14ede47c178434b60851603c05896"},
+    {file = "llvmlite-0.35.0rc3-cp38-cp38-win_amd64.whl", hash = "sha256:c7c070bf9e194d3d731bdd7b75c28e39efcdac5ea888efc092922afdec33e938"},
+]
+macholib = [
+    {file = "macholib-1.14-py2.py3-none-any.whl", hash = "sha256:c500f02867515e6c60a27875b408920d18332ddf96b4035ef03beddd782d4281"},
+    {file = "macholib-1.14.tar.gz", hash = "sha256:0c436bc847e7b1d9bda0560351bf76d7caf930fb585a828d13608839ef42c432"},
+]
 matplotlib = [
     {file = "matplotlib-3.3.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:27f9de4784ae6fb97679556c5542cf36c0751dccb4d6407f7c62517fa2078868"},
     {file = "matplotlib-3.3.2-cp36-cp36m-manylinux1_i686.whl", hash = "sha256:06866c138d81a593b535d037b2727bec9b0818cadfe6a81f6ec5715b8dd38a89"},
@@ -507,6 +643,24 @@ matplotlib = [
 networkx = [
     {file = "networkx-2.5-py3-none-any.whl", hash = "sha256:8c5812e9f798d37c50570d15c4a69d5710a18d77bafc903ee9c5fba7454c616c"},
     {file = "networkx-2.5.tar.gz", hash = "sha256:7978955423fbc9639c10498878be59caf99b44dc304c2286162fd24b458c1602"},
+]
+numba = [
+    {file = "numba-0.51.2-cp36-cp36m-macosx_10_14_x86_64.whl", hash = "sha256:af798310eeb318c56cdb83254abbe9a938cc0182d08671d7f9f032dc817e064d"},
+    {file = "numba-0.51.2-cp36-cp36m-manylinux2014_i686.whl", hash = "sha256:93e18350f2094e7432321c1275730a3143b94af012fb609cc180fa376c44867f"},
+    {file = "numba-0.51.2-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:9e2bb1f129bfadd757ad7a9c18ab79c3ab25ce6d6a68e58565d6c52ad07b3566"},
+    {file = "numba-0.51.2-cp36-cp36m-win32.whl", hash = "sha256:31cdf6b6d1301d5fb6c4fcb8b4c711ba5c9f60ba2fca008b550da9b56185367c"},
+    {file = "numba-0.51.2-cp36-cp36m-win_amd64.whl", hash = "sha256:df6edca13c04a31fdb5addf5205199478a7da372712829157ef491e8a6e7031f"},
+    {file = "numba-0.51.2-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:a628122dacfcba9a3ea68a9e95578c6b6391016e34962c46550ea8e189e0412e"},
+    {file = "numba-0.51.2-cp37-cp37m-manylinux2014_i686.whl", hash = "sha256:106736d5a8dab6bebce989d4ab1b3f169c264582598f172e6e5b736210d2e834"},
+    {file = "numba-0.51.2-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:a12f16fdb4ca5edc94e2ef412e4e768c29217ef9b6fdfc237d064ebe30acfe14"},
+    {file = "numba-0.51.2-cp37-cp37m-win32.whl", hash = "sha256:025b033fd31c44bba17802293c81270084b5454b5b055b8c10c394385c232f00"},
+    {file = "numba-0.51.2-cp37-cp37m-win_amd64.whl", hash = "sha256:081788f584fa500339e9b74bf02e3c5029d408c114e555ada19cae0b92721416"},
+    {file = "numba-0.51.2-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:5416b584183fd599afda11b947b64f89450fcf26a9c15b408167f412b98a3a94"},
+    {file = "numba-0.51.2-cp38-cp38-manylinux2014_i686.whl", hash = "sha256:05da65dca2ac28a192c9d8f20e9e477eb1237205cfc4d131c414f5f8092c6639"},
+    {file = "numba-0.51.2-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:aee435e3b7e465dd49971f8ea76aa414532a87736916cb399534e017334d1138"},
+    {file = "numba-0.51.2-cp38-cp38-win32.whl", hash = "sha256:bbbe2432433b11d3fadab0226a84c1a81918cb905ba1aeb022249e8d2ba8856c"},
+    {file = "numba-0.51.2-cp38-cp38-win_amd64.whl", hash = "sha256:259e7c15b24feec4a99fb41eb8c47b5ad49b544d1a5ad40ad0252ef531ba06fd"},
+    {file = "numba-0.51.2.tar.gz", hash = "sha256:16bd59572114adbf5f600ea383880d7b2071ae45477e84a24994e089ea390768"},
 ]
 numpy = [
     {file = "numpy-1.19.4-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:e9b30d4bd69498fc0c3fe9db5f62fffbb06b8eb9321f92cc970f2969be5e3949"},
@@ -567,6 +721,9 @@ opencv-python = [
     {file = "opencv_python-4.4.0.46-cp39-cp39-win32.whl", hash = "sha256:7fe81d08df4eb5dc4c6aa5f09888b6fd390fce5fa7d5624a98cac890b9aa6181"},
     {file = "opencv_python-4.4.0.46-cp39-cp39-win_amd64.whl", hash = "sha256:0548981fe189e0d57b9cc65066b66fd70d4bc84ea906f349a63d9098e1b911c6"},
 ]
+pefile = [
+    {file = "pefile-2019.4.18.tar.gz", hash = "sha256:a5d6e8305c6b210849b47a6174ddf9c452b2888340b8177874b862ba6c207645"},
+]
 pillow = [
     {file = "Pillow-7.2.0-cp35-cp35m-macosx_10_10_intel.whl", hash = "sha256:1ca594126d3c4def54babee699c055a913efb01e106c309fa6b04405d474d5ae"},
     {file = "Pillow-7.2.0-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:c92302a33138409e8f1ad16731568c55c9053eee71bb05b6b744067e1b62380f"},
@@ -610,6 +767,13 @@ pycparser = [
     {file = "pycparser-2.20-py2.py3-none-any.whl", hash = "sha256:7582ad22678f0fcd81102833f60ef8d0e57288b6b5fb00323d101be910e35705"},
     {file = "pycparser-2.20.tar.gz", hash = "sha256:2d475327684562c3a96cc71adf7dc8c4f0565175cf86b6d7a404ff4c771f15f0"},
 ]
+pyinstaller = [
+    {file = "pyinstaller-4.1.tar.gz", hash = "sha256:954ae81de9a4bc096ff02433b3e245b9272fe53f27cac319e71fe7540952bd3d"},
+]
+pyinstaller-hooks-contrib = [
+    {file = "pyinstaller-hooks-contrib-2020.10.tar.gz", hash = "sha256:bf4543a16c9c6e9dd2d70ea3fee78b81d3357a68f706df471d990213892259d9"},
+    {file = "pyinstaller_hooks_contrib-2020.10-py2.py3-none-any.whl", hash = "sha256:dd752c88c1c7bb6920f7de248c12d4411c0463877e5e64afdc4f7e93dff9fc94"},
+]
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},
     {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
@@ -652,6 +816,10 @@ pywavelets = [
     {file = "PyWavelets-1.1.1-cp39-cp39-win32.whl", hash = "sha256:2b634a54241c190ee989a4af87669d377b37c91bcc9cf0efe33c10ff847f7841"},
     {file = "PyWavelets-1.1.1-cp39-cp39-win_amd64.whl", hash = "sha256:732bab78435c48be5d6bc75486ef629d7c8f112e07b313bf1f1a2220ab437277"},
     {file = "PyWavelets-1.1.1.tar.gz", hash = "sha256:1a64b40f6acb4ffbaccce0545d7fc641744f95351f62e4c6aaa40549326008c9"},
+]
+pywin32-ctypes = [
+    {file = "pywin32-ctypes-0.2.0.tar.gz", hash = "sha256:24ffc3b341d457d48e8922352130cf2644024a4ff09762a2261fd34c36ee5942"},
+    {file = "pywin32_ctypes-0.2.0-py2.py3-none-any.whl", hash = "sha256:9dc2d991b3479cc2df15930958b674a48a227d5361d413827a4cfd0b5876fc98"},
 ]
 scikit-image = [
     {file = "scikit-image-0.17.2.tar.gz", hash = "sha256:bd954c0588f0f7e81d9763dc95e06950e68247d540476e06cb77bcbcd8c2d8b3"},

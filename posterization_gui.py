@@ -692,7 +692,7 @@ def savefile():
         if tk_posterized_image is None:
             tkinter.messagebox.showwarning(title='Warning', message='Please posterize the image before saving it.')
         else:
-            filename = tkinter.filedialog.asksaveasfile( mode='w', defaultextension=".jpg" )
+            filename = tkinter.filedialog.asksaveasfilename( defaultextension=".png" )
             if not filename:
                 return
             tk_posterized_image.save( filename )
