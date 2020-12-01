@@ -411,12 +411,13 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         # convert labels to RGBs
         # visualize additive mixing layers
         image_arr = np.zeros( ( labels.size, 3 ) )
-        add_mix_layers = np.zeros( ( labels.size, num_colors ) )
+        # add_mix_layers = np.zeros( ( labels.size, num_colors ) )
         for i in range( labels.size ):
             image_arr[i, :] = np.array( final_colors[nonrepeated_labels.index( labels[i] )] )
-            add_mix_layers[i, :] = np.array( weight_list[nonrepeated_labels.index( labels[i] )] )
+            # add_mix_layers[i, :] = np.array( weight_list[nonrepeated_labels.index( labels[i] )] )
         
-        return image_arr, add_mix_layers
+        return image_arr
+        #return image_arr, add_mix_layers
     
     def get_RGBXY_final_colors( labels, clusters ):
         '''
@@ -456,23 +457,18 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
     print( 'Posterization Done! ')
     
     # reconstruct per-pixel label to per-pixel RGB 
-    image_mlo, add_mix_layers = \
-    label_per_pixel_2_RGB_and_get_add_mix( mlo_labels, nonrepeated_mlo_labels, mlo_final_colors, optimized_weight_list, num_colors )
+    image_mlo = label_per_pixel_2_RGB_and_get_add_mix( mlo_labels, nonrepeated_mlo_labels\
+        , mlo_final_colors, optimized_weight_list, num_colors )
     
-    '''
-    # reduce similar color layers using clustering in RGBXY
-    image_RGBXY, RGBXY_labels, RGBXY_clusters = \
-    get_kmeans_cluster_image( 0, image_mlo, width, height, mlo_final_colors, optimized_weight_list, option = 2 )
-    
-    final_colors_RGBXY = get_RGBXY_final_colors( RGBXY_labels, RGBXY_clusters )
-    '''
     
     image_RGBXY = image_mlo.reshape( image_og.shape )
     
-    return image_RGBXY, mlo_final_colors, add_mix_layers, palette.vs 
+    return image_RGBXY, mlo_final_colors, palette.vs 
 
 
-def post_smoothing( img_mlo ):
+def post_smoothing( img_mlo, threshold ):
+    
+    print( 'Start smoothing images... ')
     
     @jit(nopython=True)
     def get_median_color( window ):
@@ -497,13 +493,12 @@ def post_smoothing( img_mlo ):
         for i in range( margin, img.shape[0] - margin ):
             for j in range( margin, img.shape[1] - margin ):
                 
-                if dft_img[i, j] < 0.1:
+                if dft_img[i, j] < threshold:
                     window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
                     
                     median_color = get_median_color( window )
                     filtered_img[i, j] = median_color
                     
-        print( 'Blurred!')
         return filtered_img
     
     cv2_img_mlo = np.array( img_mlo )
@@ -530,12 +525,14 @@ def post_smoothing( img_mlo ):
     cv2_img_mlo = medianBlur_truncate( cv2_img_mlo, img_back, 7 )
     
     cv2_img_mlo = cv2.cvtColor( cv2_img_mlo, cv2.COLOR_BGR2RGB)
-
+    
+    print( 'Image smoothing Done!' )
+    
     return PIL.Image.fromarray( cv2_img_mlo )
     
     
 
-def posterized_pipline( path, img_arr, img_og, num_clusters = 20, num_blend = 3, palette_num = 6 ):
+def posterized_pipline( path, img_arr, img_og, threshold = 0.1, num_clusters = 20, num_blend = 3, palette_num = 6 ):
     
     # algorithm starts
     start = time.time()
@@ -545,14 +542,14 @@ def posterized_pipline( path, img_arr, img_og, num_clusters = 20, num_blend = 3,
     img_arr_cluster = get_kmeans_cluster_image( num_clusters, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
     
     # MLO
-    post_img, final_colors, add_mix_layers, palette = \
+    post_img, final_colors, palette = \
     posterization( path, img_og, img_arr_cluster, palette_num, num_blend )
     
     # convert to uint8 format
     post_img = PIL.Image.fromarray( np.clip( 0, 255, post_img*255. ).astype( np.uint8 ), 'RGB' )
     
     # post-smoothing
-    smooth_post_img = post_smoothing( post_img )
+    smooth_post_img = post_smoothing( post_img, threshold )
     
     end = time.time()
     print( "Finished. Total time: ", end - start )
@@ -562,7 +559,7 @@ def posterized_pipline( path, img_arr, img_og, num_clusters = 20, num_blend = 3,
     
 def select_image():
     global panel, path, tk_input_image, tk_switch, tk_posterized_image
-    global tk_num_clusters, tk_palette_size, tk_num_blend
+    global tk_num_clusters, tk_palette_size, tk_num_blend, tk_thres
     
     # assignment on global variables
     path = tkinter.filedialog.askopenfilename()
@@ -581,20 +578,25 @@ def select_image():
         panel.configure( image = tk_image )
         panel.image = tk_image
 
-    c_kms = Label( root, text = 'Numbers of cluster for K-means: ')
+    c_kms = Label( root, text = '# of clusters for K-means (default: 20): ')
     tk_num_clusters = Entry(root)
-    c_kms.grid(row=1, column=0)
-    tk_num_clusters.grid(row=2, column=0)
+    c_kms.grid(row=20, column=0)
+    tk_num_clusters.grid(row=21, column=0)
     
-    p_sz = Label( root, text = 'Numbers of palette size: ')
+    p_sz = Label( root, text = 'Palette size (default: 6): ')
     tk_palette_size = Entry(root)
-    p_sz.grid(row=3, column=0)
-    tk_palette_size.grid(row=4, column=0)
+    p_sz.grid(row=22, column=0)
+    tk_palette_size.grid(row=23, column=0)
     
     n_b = Label( root, text = 'Numbers of blending ways (3 or 5): ')
     tk_num_blend = Entry(root)
-    n_b.grid(row=5, column=0)
-    tk_num_blend.grid(row=6, column=0)
+    n_b.grid(row=24, column=0)
+    tk_num_blend.grid(row=25, column=0)
+    
+    thres = Label( root, text = 'Blurring threshold (default: 0.1): ')
+    tk_thres = Entry(root)
+    thres.grid(row=26, column=0)
+    tk_thres.grid(row=27, column=0)
 
     
     
@@ -624,9 +626,13 @@ def posterize_button():
             num_blend = int( tk_num_blend.get() )
         else:
             num_blend = 3
+            
+        if tk_thres.get():
+            threshold = float( tk_thres.get() )
+        else:
+            threshold = 0.1
         
-        
-        posterized_image = posterized_pipline( path, img_arr, img_arr_og, num_clusters, num_blend, palette_size )
+        posterized_image = posterized_pipline( path, img_arr, img_arr_og, threshold, num_clusters, num_blend, palette_size )
         
         tk_switch = 1
         tk_posterized_image = posterized_image
