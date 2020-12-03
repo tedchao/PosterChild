@@ -8,7 +8,6 @@ import gco
 from skimage import color
 from sklearn.cluster import KMeans
 from scipy.optimize import *
-from autograd import grad
 import cv2
 
 from numba import jit
@@ -33,7 +32,7 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
     Return: A neighboring information for different blends and palette. (2D list),
     list of weights for each color (2D list), a list of candidate colors.
     '''
-    
+    size = 1 / ( num_blend + 1 )
     a, b, c = 0.5, 0.25, 0.75
     blends = [[a, 1-a], [b, 1-b], [c, 1-c]]
     
@@ -49,6 +48,37 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
         
     for i in range( num_colors ):
         for j in range( i+1, num_colors ):
+            
+            # add blended colors from i-position to j-position
+            for k in range( num_blend ):
+                candidate_colors = np.vstack( ( candidate_colors, ( 1 - ( k + 1 ) * size ) * candidate_colors[i] + ( k + 1 ) *  size * candidate_colors[j] ) ) 
+                
+                if k == 0 and k == num_blend - 1:
+                    neighbor_list.append( [i, j] )  # only 1 blend
+                elif k == 0 or k == num_blend - 1:
+                    if k == 0:
+                        neighbor_list.append( [i, pos_iter + 1] )   # first head
+                    else:
+                        neighbor_list.append( [j, pos_iter + num_blend - 2] )   # last tail
+                else:
+                    #if k != 0 and k != num_blend - 1:
+                    neighbor_list.append( [pos_iter + k - 1, pos_iter + k + 1] )
+            
+            if i in neighbor_list[j]:
+                neighbor_list[i].remove( j )
+                neighbor_list[j].remove( i )
+                
+            # add palette weight for each color to weight list
+            for s in range( num_blend ):
+                weights = num_colors * [0]
+                weights[i] = 1 - ( s + 1 ) * size
+                weights[j] = ( s + 1 ) *  size
+                weight_list.append( weights )
+                
+            pos_iter += num_blend
+            
+            
+            '''
             if num_blend == 3:
                 # add to candidate colors
                 candidate_colors = np.vstack( ( candidate_colors, a * candidate_colors[i] + (1-a) * candidate_colors[j] ) ) # middle blend
@@ -94,7 +124,8 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
                 weights[j] = blends[0][1]
                 weight_list.append( weights )
                 pos_iter += 1
-                
+            '''
+            
     return candidate_colors, neighbor_list, np.array( weight_list )
     
     
@@ -433,13 +464,13 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         # convert labels to RGBs
         # visualize additive mixing layers
         image_arr = np.zeros( ( labels.size, 3 ) )
-        # add_mix_layers = np.zeros( ( labels.size, num_colors ) )
+        add_mix_layers = np.zeros( ( labels.size, num_colors ) )
         for i in range( labels.size ):
-            image_arr[i, :] = np.array( final_colors[nonrepeated_labels.index( labels[i] )] )
-            # add_mix_layers[i, :] = np.array( weight_list[nonrepeated_labels.index( labels[i] )] )
+            image_arr[i, :] = np.array( final_colors[ nonrepeated_labels.index( labels[i] ) ] )
+            add_mix_layers[i, :] = np.array( weight_list[ labels[i] ] )
         
-        return image_arr
-        #return image_arr, add_mix_layers
+        # return image_arr
+        return image_arr, add_mix_layers
     
     def get_RGBXY_final_colors( labels, clusters ):
         '''
@@ -476,17 +507,21 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
     # compute final optimized colors in each layer
     mlo_final_colors = get_final_colors_from_opt_weight( nonrepeated_mlo_labels, optimized_weight_list, palette )
     print( 'Final colors being used after MLO:', len( mlo_final_colors ) ) 
-    print( 'Posterization Done! ')
+    print( 'Posterization Done! Extract mixing layers...')
     
     # reconstruct per-pixel label to per-pixel RGB 
-    image_mlo = label_per_pixel_2_RGB_and_get_add_mix( mlo_labels, nonrepeated_mlo_labels\
+    image_mlo, add_mix_layers = label_per_pixel_2_RGB_and_get_add_mix( mlo_labels, nonrepeated_mlo_labels\
         , mlo_final_colors, optimized_weight_list, num_colors )
+    print( 'Done extracting layers!' )
     
+    image_RGB = image_mlo.reshape( image_og.shape )
     
-    image_RGBXY = image_mlo.reshape( image_og.shape )
-    
-    return image_RGBXY, mlo_final_colors, palette.vs 
+    return image_RGB, mlo_final_colors, add_mix_layers, palette.vs 
 
+
+######################################################
+######################################################
+######################################################
 
 def post_smoothing( img_mlo, threshold ):
     
@@ -555,6 +590,7 @@ def post_smoothing( img_mlo, threshold ):
     
 
 def posterized_pipline( path, img_arr, img_og, threshold = 0.1, num_clusters = 20, num_blend = 3, palette_num = 6 ):
+    global tk_posterized_image, tk_palette_color, tk_add_mix, tk_img_shape
     
     # algorithm starts
     start = time.time()
@@ -564,11 +600,15 @@ def posterized_pipline( path, img_arr, img_og, threshold = 0.1, num_clusters = 2
     img_arr_cluster = get_kmeans_cluster_image( num_clusters, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
     
     # MLO
-    post_img, final_colors, palette = \
+    post_img, final_colors, add_mix_layers, palette = \
     posterization( path, img_og, img_arr_cluster, palette_num, num_blend )
+    tk_img_shape = post_img.shape
     
     # convert to uint8 format
     post_img = PIL.Image.fromarray( np.clip( 0, 255, post_img*255. ).astype( np.uint8 ), 'RGB' )
+    tk_posterized_image = post_img
+    tk_palette_color = palette
+    tk_add_mix = add_mix_layers
     
     # post-smoothing
     smooth_post_img = post_smoothing( post_img, threshold )
@@ -582,6 +622,7 @@ def posterized_pipline( path, img_arr, img_og, threshold = 0.1, num_clusters = 2
 def select_image():
     global panel, path, tk_input_image, tk_switch, tk_posterized_image
     global tk_num_clusters, tk_palette_size, tk_num_blend, tk_thres
+    global tk_pal_num, tk_rc_r, tk_rc_g, tk_rc_b
     
     # assignment on global variables
     path = tkinter.filedialog.askopenfilename()
@@ -610,7 +651,7 @@ def select_image():
     p_sz.grid(row=22, column=0)
     tk_palette_size.grid(row=23, column=0)
     
-    n_b = Label( root, text = 'Numbers of blending ways (1 or 3): ')
+    n_b = Label( root, text = 'Numbers of blending ways: ')
     tk_num_blend = Entry(root)
     n_b.grid(row=24, column=0)
     tk_num_blend.grid(row=25, column=0)
@@ -619,6 +660,20 @@ def select_image():
     tk_thres = Entry(root)
     thres.grid(row=26, column=0)
     tk_thres.grid(row=27, column=0)
+    
+    pal_num = Label( root, text = 'Choose palette number to recolor (0 to palette size): ')
+    tk_pal_num = Entry(root)
+    pal_num.grid(row=50, column=0)
+    tk_pal_num.grid(row=51, column=0)
+    
+    recolor = Label( root, text = 'Choose color to recolor (0 to 255): ')
+    tk_rc_r = Entry(root)
+    tk_rc_g = Entry(root)
+    tk_rc_b = Entry(root)
+    recolor.grid(row=60, column=0)
+    tk_rc_r.grid(row=61, column=0)
+    tk_rc_g.grid(row=62, column=0)
+    tk_rc_b.grid(row=63, column=0)
 
     
     
@@ -660,7 +715,7 @@ def posterize_button():
         tk_posterized_image = posterized_image
         panel.image.paste( posterized_image )
         panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
-    
+        print( 'palette colors: ', np.clip( 0, 255, tk_palette_color * 255. ).astype( np.uint8 ) )
 
 def compare():
     global tk_switch
@@ -698,13 +753,67 @@ def savefile():
             tk_posterized_image.save( filename )
 
 
+def recolor_posterized_image():
+    global tk_recolor_image
+    
+    if panel is None:
+        tkinter.messagebox.showwarning( title='Warning', message='Please select an image first.' )
+        
+    else:
+        if tk_posterized_image is None:
+            tkinter.messagebox.showwarning(title='Warning', message='Please posterize the image before recoloring it.')
+        else:
+            if tk_pal_num.get():
+                chosen_palette = int( tk_pal_num.get() )
+            else:
+                chosen_palette = 0
+
+            if tk_rc_r.get() == '' or tk_rc_g.get() == '' or tk_rc_b.get() == '':
+                tkinter.messagebox.showwarning(title='Warning', message='Please recolor with a valid color in RGB.')
+            
+            else:
+                recolor_paint = np.array( [int( tk_rc_r.get() ), int( tk_rc_g.get() ), int( tk_rc_b.get() ) ] ) / 255.
+                tk_palette_color[ chosen_palette ] = recolor_paint
+                
+                recolor_image = tk_add_mix @ tk_palette_color
+                recolor_image = recolor_image.reshape( tk_img_shape )
+                
+                recolor_image = PIL.Image.fromarray( np.clip( 0, 255, recolor_image*255. ).astype( np.uint8 ), 'RGB' )
+                
+                if tk_thres.get():
+                    threshold = float( tk_thres.get() )
+                else:
+                    threshold = 0.1
+                    
+                smooth_recolor_img = post_smoothing( recolor_image, threshold )
+                tk_recolor_image = smooth_recolor_img
+                
+                panel.image.paste( smooth_recolor_img )
+                panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
+            
+
+def save_recolor():
+    
+    if panel is None:
+        tkinter.messagebox.showwarning( title='Warning', message='Please select an image first.' )
+        
+    else:
+        if tk_recolor_image is None:
+            tkinter.messagebox.showwarning(title='Warning', message='Please recolor the image before saving it.')
+        else:
+            filename = tkinter.filedialog.asksaveasfilename( defaultextension=".png" )
+            if not filename:
+                return
+            tk_recolor_image.save( filename )
+
+
 root = Tk()
 root.title( 'Posterization' )
     
 panel = None
 tk_switch = 0
 tk_posterized_image = None
-
+tk_recolor_image = None
 '''
 btn1 = Button(root, text="Select an image", command = select_image)
 btn1.pack(side="bottom", fill="both", expand="yes")
@@ -724,9 +833,12 @@ btn1 = Button(f1, text="Select an image", command = select_image).pack(side=TOP,
 btn2 = Button(f1, text="Posterized!", command = posterize_button).pack(side=TOP, fill="both", expand="yes")
 btn3 = Button(f1, text="Press to compare", command = compare).pack(side=TOP, fill="both", expand="yes")
 btn4 = Button(f1, text="Save posterized image", command = savefile).pack(side=TOP, fill="both", expand="yes")
+btn5 = Button(f1, text="Recolor posterized image", command = recolor_posterized_image).pack(side=TOP, fill="both", expand="yes")
+btn6 = Button(f1, text="Save recolored image", command = save_recolor).pack(side=TOP, fill="both", expand="yes")
 f1.grid(row=0, column=0)
 
 # kick off the GUI
 root.mainloop()
+    
     
     
