@@ -1,0 +1,19 @@
+name: posterization
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - scikit-learn
+  - scikit-image
+  - cairocffi
+  - numpy
+  - numba
+  - scipy
+  - py-opencv
+  - pillow
+  - pyinstaller
+  - pycairo
+  - cython
+  - cvxopt
+prefix: /Users/yotam/opt/miniconda3/envs/posterization
