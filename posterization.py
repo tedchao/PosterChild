@@ -8,7 +8,7 @@ import cv2
 
 from math import *
 
-import potrace
+# import potrace
 import cairo
 import random
 import time
