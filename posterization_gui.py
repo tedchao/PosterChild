@@ -40,7 +40,12 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
     # 2D list
     neighbor_list = []
     for i in range( num_colors ):
+        neighbor_list.append( [] )
+
+    '''
+    for i in range( num_colors ):
         neighbor_list.append( mesh.vertex_vertex_neighbors ( i ) )
+    '''
     
     # discrete blendings
     candidate_colors = mesh.vs
@@ -55,19 +60,24 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
                 
                 if k == 0 and k == num_blend - 1:
                     neighbor_list.append( [i, j] )  # only 1 blend
+                    neighbor_list[i].append( pos_iter ) 
+                    neighbor_list[j].append( pos_iter )
+                    
                 elif k == 0 or k == num_blend - 1:
                     if k == 0:
                         neighbor_list.append( [i, pos_iter + 1] )   # first head
+                        neighbor_list[i].append( pos_iter ) 
                     else:
                         neighbor_list.append( [j, pos_iter + num_blend - 2] )   # last tail
+                        neighbor_list[j].append( pos_iter + num_blend - 1 ) 
                 else:
                     #if k != 0 and k != num_blend - 1:
                     neighbor_list.append( [pos_iter + k - 1, pos_iter + k + 1] )
-            
+            '''
             if i in neighbor_list[j]:
                 neighbor_list[i].remove( j )
                 neighbor_list[j].remove( i )
-                
+            '''
             # add palette weight for each color to weight list
             for s in range( num_blend ):
                 weights = num_colors * [0]
@@ -366,7 +376,7 @@ def save_additive_mixing_layers( add_mix_layers, width, height, palette, save_pa
         Image.fromarray( np.clip( 0, 255, img_add_mix * 255. ).astype( np.uint8 ), 'RGBA' ).save( save_path + '-' + str( i ) + '.png' )
 
 
-def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 3 ):
+def posterization( input_img_path, image_og, image_arr, add_palette_color, num_colors, num_blend = 3 ):
     '''
     Given:
         input_img_path: path for input image.
@@ -488,14 +498,19 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         
         return final_colors_RGBXY
     
+    '''
+    og_palette_size = num_colors
     
     # get blended colors, neighbor list and weight list
+    if type( add_palette_color ).__module__ == np.__name__:
+        num_colors += 1
+    '''
     weight_list = get_initial_weight_ls( num_colors )
     palette = get_palette( input_img_path, image_arr, num_colors )
     
     candidate_colors, neighbor_list, weight_list = \
     get_candidate_colors_and_neighbor_list( palette, weight_list, num_colors, num_blend ) 
-    
+    print( neighbor_list )
     
     # MLO
     mlo_labels = MLO( image_og, candidate_colors, neighbor_list, weight_list )
@@ -589,7 +604,7 @@ def post_smoothing( img_mlo, threshold ):
     
     
 
-def posterized_pipline( path, img_arr, img_og, threshold = 0.1, num_clusters = 20, num_blend = 3, palette_num = 6 ):
+def posterized_pipline( path, img_arr, img_og, add_palette_color, threshold = 0.1, num_clusters = 20, num_blend = 3, palette_num = 6 ):
     global tk_posterized_image, tk_palette_color, tk_add_mix, tk_img_shape
     
     # algorithm starts
@@ -601,7 +616,7 @@ def posterized_pipline( path, img_arr, img_og, threshold = 0.1, num_clusters = 2
     
     # MLO
     post_img, final_colors, add_mix_layers, palette = \
-    posterization( path, img_og, img_arr_cluster, palette_num, num_blend )
+    posterization( path, img_og, img_arr_cluster, add_palette_color, palette_num, num_blend )
     tk_img_shape = post_img.shape
     
     # convert to uint8 format
@@ -622,7 +637,7 @@ def posterized_pipline( path, img_arr, img_og, threshold = 0.1, num_clusters = 2
 def select_image():
     global panel, path, tk_input_image, tk_switch, tk_posterized_image
     global tk_num_clusters, tk_palette_size, tk_num_blend, tk_thres
-    global tk_pal_num, tk_rc_r, tk_rc_g, tk_rc_b
+    global tk_pal_num, tk_rc_r, tk_rc_g, tk_rc_b, tk_pc
     
     # assignment on global variables
     path = tkinter.filedialog.askopenfilename()
@@ -640,7 +655,14 @@ def select_image():
         tk_posterized_image = None
         panel.configure( image = tk_image )
         panel.image = tk_image
-
+    
+    c_pc = Label( root, text = 'Do you want to add one palette color?')
+    c_pc_format = Label( root, text = 'Format: R, G, B (0 to 255)')
+    tk_pc = Entry(root)
+    c_pc.grid(row=17, column=0)
+    c_pc_format.grid(row=18, column=0)
+    tk_pc.grid(row=19, column=0)
+    
     c_kms = Label( root, text = '# of clusters for K-means (default: 20): ')
     tk_num_clusters = Entry(root)
     c_kms.grid(row=20, column=0)
@@ -676,7 +698,6 @@ def select_image():
     tk_rc_b.grid(row=63, column=0)
 
     
-    
 def posterize_button():
     global tk_posterized_image
     
@@ -708,8 +729,15 @@ def posterize_button():
             threshold = float( tk_thres.get() )
         else:
             threshold = 0.1
+            
+        if tk_pc.get():
+            r, g, b = tk_pc.get().split(',')
+            add_palette_color = np.array([ float( r ), float( g ), float( b )])
+    
+        else:
+            add_palette_color = None
         
-        posterized_image = posterized_pipline( path, img_arr, img_arr_og, threshold, num_clusters, num_blend, palette_size )
+        posterized_image = posterized_pipline( path, img_arr, img_arr_og, add_palette_color, threshold, num_clusters, num_blend, palette_size )
         
         tk_switch = 1
         tk_posterized_image = posterized_image
