@@ -2,10 +2,24 @@
 
 ## Installation
 
+### macOS or Linux
+
 Use [Poetry](https://python-poetry.org/). Install Poetry itself via `pip install poetry` or `brew install poetry`. Then:
 
     poetry install --no-root
     poetry shell
+
+To create a double-clickable .app for macOS users, run (inside a poetry shell):
+
+    pyinstaller posterization_gui.spec
+
+### Windows
+
+Install [Anaconda](https://www.anaconda.com/products/individual) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html). Then:
+
+    conda env create -f environment.yml
+    conda activate posterization
+    pip install git+https://github.com/yig/pyGCO@buil-win
 
 ## Usage
 
