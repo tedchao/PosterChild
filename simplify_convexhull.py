@@ -206,18 +206,18 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
     mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
     print ('original vertices number:',len(mesh.vs))
     
-    N = 500
-    for i in range(N):
-        #print ('loop:', i)
-        old_num = len(mesh.vs)
-        mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
-        mesh = remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,option=2)
-        newhull = ConvexHull(mesh.vs)   # new convex hull
-        
-        write_convexhull_into_obj_file(newhull, output_rawhull_obj_file)
-                
-        if len(mesh.vs) == old_num or len(mesh.vs) <= num_colors:
-            print ('final vertices number:', len(mesh.vs))
-            break
-    
+    if num_colors < len( mesh.vs ):
+        N = 500
+        for i in range(N):
+            #print ('loop:', i)
+            old_num = len(mesh.vs)
+            mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
+            mesh = remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,option=2)
+            newhull = ConvexHull(mesh.vs)   # new convex hull
+            
+            write_convexhull_into_obj_file(newhull, output_rawhull_obj_file)
+                    
+            if len(mesh.vs) == old_num or len(mesh.vs) <= num_colors:
+                break
+    print ('final vertices number:', len(mesh.vs))
     return mesh
