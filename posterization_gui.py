@@ -156,7 +156,7 @@ def get_unary( image_arr, candidate_colors ):
     return unary
 
 
-def get_binary( neighbor_list, weight_list, candidate_colors, option = 1 ):
+def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penalization = 0.7 ):
     '''
     Given: list of neighboring information (2D list), list of weights for each color (2D list),
     list of candidate colors, regularization term, and option. (option=1: Simple Pott's potential,
@@ -177,15 +177,15 @@ def get_binary( neighbor_list, weight_list, candidate_colors, option = 1 ):
         for i in range( len( neighbor_list ) ):
             for j in range( len( neighbor_list[i] ) ):
                 binary[i][neighbor_list[i][j]] = 0.5
-    
+
     # half of the L1 norm distance based on weights on each palette
     if option == 2:
         binary = np.zeros( ( len( neighbor_list ), len( neighbor_list ) ) )
-        
         for i in range( len( candidate_colors ) ):
             for j in range( len( candidate_colors ) ):
                 if i != j:
-                    binary[i][j] = np.linalg.norm( ( candidate_colors[i] - candidate_colors[j] ), ord=2 )
+                    binary[i][j] = penalization * np.linalg.norm( ( candidate_colors[i] - candidate_colors[j] ), ord=2 )
+
     return binary
     
 @jit(nopython=True)
@@ -376,7 +376,7 @@ def save_additive_mixing_layers( add_mix_layers, width, height, palette, save_pa
         Image.fromarray( np.clip( 0, 255, img_add_mix * 255. ).astype( np.uint8 ), 'RGBA' ).save( save_path + '-' + str( i ) + '.png' )
 
 
-def posterization( input_img_path, image_og, image_arr, add_palette_color, num_colors, num_blend = 3 ):
+def posterization( input_img_path, image_og, image_arr, add_palette_color, num_colors, num_blend = 3, penalization = 0.7 ):
     '''
     Given:
         input_img_path: path for input image.
@@ -440,7 +440,7 @@ def posterization( input_img_path, image_og, image_arr, add_palette_color, num_c
         print( 'start multi-label optimization...' )
         
         unary = get_unary( image_og, candidate_colors )
-        binary = get_binary( neighbor_list, weight_list, candidate_colors, option = 2 )
+        binary = get_binary( neighbor_list, weight_list, candidate_colors, option = 2, penalization = penalization )
             
         # get final labels from the optimization (alpha-beta swap)
         labels = gco.cut_grid_graph_simple( unary, binary, n_iter = 100, algorithm='swap' ) 
@@ -510,7 +510,6 @@ def posterization( input_img_path, image_og, image_arr, add_palette_color, num_c
     
     candidate_colors, neighbor_list, weight_list = \
     get_candidate_colors_and_neighbor_list( palette, weight_list, num_colors, num_blend ) 
-    print( neighbor_list )
     
     # MLO
     mlo_labels = MLO( image_og, candidate_colors, neighbor_list, weight_list )
@@ -604,9 +603,9 @@ def post_smoothing( img_mlo, threshold ):
     
     
 
-def posterized_pipline( path, img_arr, img_og, add_palette_color, threshold = 0.1, num_clusters = 20, num_blend = 3, palette_num = 6 ):
+def posterized_pipline( path, img_arr, img_og, add_palette_color, threshold, num_clusters, num_blend, palette_num, penalization ):
     global tk_posterized_image, tk_palette_color, tk_add_mix, tk_img_shape
-    
+
     # algorithm starts
     start = time.time()
     
@@ -616,7 +615,7 @@ def posterized_pipline( path, img_arr, img_og, add_palette_color, threshold = 0.
     
     # MLO
     post_img, final_colors, add_mix_layers, palette = \
-    posterization( path, img_og, img_arr_cluster, add_palette_color, palette_num, num_blend )
+    posterization( path, img_og, img_arr_cluster, add_palette_color, palette_num, num_blend, penalization )
     tk_img_shape = post_img.shape
     
     # convert to uint8 format
@@ -656,11 +655,11 @@ def select_image():
         panel.configure( image = tk_image )
         panel.image = tk_image
     
-    c_pc = Label( root, text = 'Do you want to add one palette color?')
-    c_pc_format = Label( root, text = 'Format: R, G, B (0 to 255)')
+    c_pc = Label( root, text = 'Penalization on binary term (default: 1): ')
+    #c_pc_format = Label( root, text = 'Format: R, G, B (0 to 255)')
     tk_pc = Entry(root)
-    c_pc.grid(row=17, column=0)
-    c_pc_format.grid(row=18, column=0)
+    c_pc.grid(row=18, column=0)
+    #c_pc_format.grid(row=18, column=0)
     tk_pc.grid(row=19, column=0)
     
     c_kms = Label( root, text = '# of clusters for K-means (default: 20): ')
@@ -673,7 +672,7 @@ def select_image():
     p_sz.grid(row=22, column=0)
     tk_palette_size.grid(row=23, column=0)
     
-    n_b = Label( root, text = 'Numbers of blending ways: ')
+    n_b = Label( root, text = 'Numbers of blending ways (default: 3): ')
     tk_num_blend = Entry(root)
     n_b.grid(row=24, column=0)
     tk_num_blend.grid(row=25, column=0)
@@ -731,13 +730,14 @@ def posterize_button():
             threshold = 0.1
             
         if tk_pc.get():
-            r, g, b = tk_pc.get().split(',')
-            add_palette_color = np.array([ float( r ), float( g ), float( b )])
-    
+            #r, g, b = tk_pc.get().split(',')
+            #add_palette_color = np.array([ float( r ), float( g ), float( b )])
+            penalization = float( tk_pc.get() )
         else:
-            add_palette_color = None
+            penalization = 1
         
-        posterized_image = posterized_pipline( path, img_arr, img_arr_og, add_palette_color, threshold, num_clusters, num_blend, palette_size )
+        add_palette_color = None
+        posterized_image = posterized_pipline( path, img_arr, img_arr_og, add_palette_color, threshold, num_clusters, num_blend, palette_size, penalization )
         
         tk_switch = 1
         tk_posterized_image = posterized_image
