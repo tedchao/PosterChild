@@ -667,12 +667,12 @@ def select_image():
     c_kms.grid(row=20, column=0)
     tk_num_clusters.grid(row=21, column=0)
     
-    p_sz = Label( root, text = 'Palette size (default: 6): ')
+    p_sz = Label( root, text = 'Palette size before blending (default: 6): ')
     tk_palette_size = Entry(root)
     p_sz.grid(row=22, column=0)
     tk_palette_size.grid(row=23, column=0)
     
-    n_b = Label( root, text = 'Numbers of blending ways (default: 3): ')
+    n_b = Label( root, text = 'Numbers of blends (default: 3): ')
     tk_num_blend = Entry(root)
     n_b.grid(row=24, column=0)
     tk_num_blend.grid(row=25, column=0)
