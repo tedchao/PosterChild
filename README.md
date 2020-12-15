@@ -15,7 +15,9 @@ To create a double-clickable .app for macOS users, run (inside a poetry shell):
 
 ### Windows
 
-Install [Anaconda](https://www.anaconda.com/products/individual) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html). Then:
+Install [Anaconda](https://www.anaconda.com/products/individual) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
+(Miniconda is faster to install.) Choose the 64-bit Python 3.x version.
+Then:
 
     conda env create -f environment.yml
     conda activate posterization
