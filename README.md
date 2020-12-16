@@ -28,7 +28,7 @@ Then:
 
 Launch the GUI:
 
-    python posterization_gui.py
+    python GUI.py
 
 Command line example:
 
