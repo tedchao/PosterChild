@@ -13,22 +13,23 @@ To create a double-clickable .app for macOS users, run (inside a poetry shell):
 
     pyinstaller posterization_gui.spec
 
+A double-clickable `posterization_gui.app` will appear inside the `dist/` directory.
+
 ### Windows
 
 Install [Anaconda](https://www.anaconda.com/products/individual) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
-(Miniconda is faster to install.) Choose the 64-bit Python 3.x version.
+(Miniconda is faster to install.) Choose the 64-bit Python 3.x version. Launch the Anaconda shell from the Start menu and navigate to the posterization directory.
 Then:
 
     conda env create -f environment.yml
     conda activate posterization
-    pip install git+https://github.com/yig/pyGCO@buil-win
 
 ## Usage
 
-Example run:
-
-    python posterization.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
-    
-Our run it to play with GUI:
+Launch the GUI:
 
     python posterization_gui.py
+
+Command line example:
+
+    python posterization.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
