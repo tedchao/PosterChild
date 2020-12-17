@@ -4,6 +4,37 @@ from tkinter import *
 import tkinter.filedialog
 import tkinter.messagebox
 
+
+def posterized_pipline( path, img_arr, img_og, threshold, num_clusters, num_blend, palette_num, penalization ):
+    global tk_posterized_image, tk_palette_color, tk_add_mix, tk_img_shape, smooth_posterized_image
+    
+    # algorithm starts
+    start = time.time()
+    
+    # K-means
+    img_arr_re = img_arr.reshape( ( -1, 3 ) )
+    img_arr_cluster = get_kmeans_cluster_image( num_clusters, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
+    
+    # MLO
+    post_img, final_colors, add_mix_layers, palette = \
+    posterization( path, img_og, img_arr_cluster, palette_num, num_blend, penalization )
+    tk_img_shape = post_img.shape
+    
+    # convert to uint8 format
+    post_img = PIL.Image.fromarray( np.clip( 0, 255, post_img*255. ).astype( np.uint8 ), 'RGB' )
+    tk_posterized_image = post_img   # this image is only posterized without smoothing
+    tk_palette_color = palette
+    tk_add_mix = add_mix_layers
+    
+    # post-smoothing
+    post_img = post_smoothing( post_img, threshold )
+    smooth_posterized_image = post_img
+    
+    end = time.time()
+    print( "Finished. Total time: ", end - start )
+    
+    return post_img
+
     
 def select_image():
     global panel, path, tk_input_image, tk_switch, tk_posterized_image
@@ -34,12 +65,12 @@ def select_image():
     #c_pc_format.grid(row=18, column=0)
     tk_pc.grid(row=19, column=0)
     
-    c_kms = Label( root, text = '# of clusters for K-means (default: 20): ')
+    c_kms = Label( root, text = 'Threshold for outlier colors (default: 20): ')
     tk_num_clusters = Entry(root)
     c_kms.grid(row=20, column=0)
     tk_num_clusters.grid(row=21, column=0)
     
-    p_sz = Label( root, text = 'Palette size (default: 6): ')
+    p_sz = Label( root, text = 'Main palette size (default: 6): ')
     tk_palette_size = Entry(root)
     p_sz.grid(row=22, column=0)
     tk_palette_size.grid(row=23, column=0)
@@ -53,20 +84,6 @@ def select_image():
     tk_thres = Entry(root)
     thres.grid(row=26, column=0)
     tk_thres.grid(row=27, column=0)
-    
-    pal_num = Label( root, text = 'Choose palette number to recolor (1 to palette size): ')
-    tk_pal_num = Entry(root)
-    pal_num.grid(row=50, column=0)
-    tk_pal_num.grid(row=51, column=0)
-    
-    recolor = Label( root, text = 'Choose color to recolor (0 to 255): ')
-    tk_rc_r = Entry(root)
-    tk_rc_g = Entry(root)
-    tk_rc_b = Entry(root)
-    recolor.grid(row=60, column=0)
-    tk_rc_r.grid(row=61, column=0)
-    tk_rc_g.grid(row=62, column=0)
-    tk_rc_b.grid(row=63, column=0)
     
     
 def posterize_button():
@@ -102,17 +119,13 @@ def posterize_button():
             threshold = 0.1
             
         if tk_pc.get():
-            #r, g, b = tk_pc.get().split(',')
-            #add_palette_color = np.array([ float( r ), float( g ), float( b )])
             penalization = float( tk_pc.get() )
         else:
             penalization = 1
-            
-        add_palette_color = None
-        posterized_image = posterized_pipline( path, img_arr, img_arr_og, add_palette_color, threshold, num_clusters, num_blend, palette_size, penalization )
+        
+        posterized_image = posterized_pipline( path, img_arr, img_arr_og, threshold, num_clusters, num_blend, palette_size, penalization )
         
         tk_switch = 1
-        tk_posterized_image = posterized_image
         panel.image.paste( posterized_image )
         panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
         print( 'palette colors: ', np.clip( 0, 255, tk_palette_color * 255. ).astype( np.uint8 ) )
@@ -156,7 +169,7 @@ def compare():
                 panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
                 tk_switch = 1
             else:
-                panel.image.paste( tk_posterized_image )
+                panel.image.paste( smooth_posterized_image )
                 panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
                 tk_switch = 0
                 
@@ -178,61 +191,7 @@ def savefile():
             if not filename:
                 return
             smooth_posterized_image.save( filename )
-            
-            
-def recolor_posterized_image():
-    global tk_recolor_image
-    
-    if panel is None:
-        tkinter.messagebox.showwarning( title='Warning', message='Please select an image first.' )
         
-    else:
-        if tk_posterized_image is None:
-            tkinter.messagebox.showwarning(title='Warning', message='Please posterize the image before recoloring it.')
-        else:
-            if tk_pal_num.get():
-                chosen_palette = int( tk_pal_num.get() ) - 1
-            else:
-                chosen_palette = 0
-                
-            if tk_rc_r.get() == '' or tk_rc_g.get() == '' or tk_rc_b.get() == '':
-                tkinter.messagebox.showwarning(title='Warning', message='Please recolor with a valid color in RGB.')
-                
-            else:
-                recolor_paint = np.array( [int( tk_rc_r.get() ), int( tk_rc_g.get() ), int( tk_rc_b.get() ) ] ) / 255.
-                tk_palette_color[ chosen_palette ] = recolor_paint
-                
-                recolor_image = tk_add_mix @ tk_palette_color
-                recolor_image = recolor_image.reshape( tk_img_shape )
-                
-                recolor_image = PIL.Image.fromarray( np.clip( 0, 255, recolor_image*255. ).astype( np.uint8 ), 'RGB' )
-                
-                if tk_thres.get():
-                    threshold = float( tk_thres.get() )
-                else:
-                    threshold = 0.1
-                    
-                smooth_recolor_img = post_smoothing( recolor_image, threshold )
-                tk_recolor_image = smooth_recolor_img
-                
-                panel.image.paste( smooth_recolor_img )
-                panel.grid(row = 0, column = 1, columnspan = 2, rowspan = 200)
-                
-                
-def save_recolor():
-    
-    if panel is None:
-        tkinter.messagebox.showwarning( title='Warning', message='Please select an image first.' )
-        
-    else:
-        if tk_recolor_image is None:
-            tkinter.messagebox.showwarning(title='Warning', message='Please recolor the image before saving it.')
-        else:
-            filename = tkinter.filedialog.asksaveasfilename( defaultextension=".png" )
-            if not filename:
-                return
-            tk_recolor_image.save( filename )
-            
             
 root = Tk()
 root.title( 'Posterization' )
@@ -240,17 +199,14 @@ root.title( 'Posterization' )
 panel = None
 tk_switch = 0
 tk_posterized_image = None
-tk_recolor_image = None
 smooth_posterized_image = None
 
 f1 = Frame(root)
 btn1 = Button(f1, text="Select an image", command = select_image).pack(side=TOP, fill="both", expand="yes")
 btn2 = Button(f1, text="Posterize!", command = posterize_button).pack(side=TOP, fill="both", expand="yes")
-btn3 = Button(f1, text="Smooth!", command = smooth_image).pack(side=TOP, fill="both", expand="yes")
+btn3 = Button(f1, text="Re-smooth?", command = smooth_image).pack(side=TOP, fill="both", expand="yes")
 btn4 = Button(f1, text="Press to compare", command = compare).pack(side=TOP, fill="both", expand="yes")
 btn5 = Button(f1, text="Save posterized image", command = savefile).pack(side=TOP, fill="both", expand="yes")
-btn6 = Button(f1, text="Recolor posterized image", command = recolor_posterized_image).pack(side=TOP, fill="both", expand="yes")
-btn7 = Button(f1, text="Save recolored image", command = save_recolor).pack(side=TOP, fill="both", expand="yes")
 f1.grid(row=0, column=0)
 
 # kick off the GUI

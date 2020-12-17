@@ -376,7 +376,7 @@ def save_additive_mixing_layers( add_mix_layers, width, height, palette, save_pa
         Image.fromarray( np.clip( 0, 255, img_add_mix * 255. ).astype( np.uint8 ), 'RGBA' ).save( save_path + '-' + str( i ) + '.png' )
 
 
-def posterization( input_img_path, image_og, image_arr, add_palette_color, num_colors, num_blend = 3, penalization = 0.7 ):
+def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 3, penalization = 0.7 ):
     '''
     Given:
         input_img_path: path for input image.
@@ -498,13 +498,6 @@ def posterization( input_img_path, image_og, image_arr, add_palette_color, num_c
         
         return final_colors_RGBXY
     
-    '''
-    og_palette_size = num_colors
-    
-    # get blended colors, neighbor list and weight list
-    if type( add_palette_color ).__module__ == np.__name__:
-        num_colors += 1
-    '''
     weight_list = get_initial_weight_ls( num_colors )
     palette = get_palette( input_img_path, image_arr, num_colors )
     
@@ -601,34 +594,3 @@ def post_smoothing( img_mlo, threshold ):
     print( 'Image smoothing Done!' )
     
     return PIL.Image.fromarray( cv2_img_mlo )
-
-
-    
-def posterized_pipline( path, img_arr, img_og, add_palette_color, threshold, num_clusters, num_blend, palette_num, penalization ):
-    global tk_posterized_image, tk_palette_color, tk_add_mix, tk_img_shape
-    
-    # algorithm starts
-    start = time.time()
-    
-    # K-means
-    img_arr_re = img_arr.reshape( ( -1, 3 ) )
-    img_arr_cluster = get_kmeans_cluster_image( num_clusters, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
-    
-    # MLO
-    post_img, final_colors, add_mix_layers, palette = \
-    posterization( path, img_og, img_arr_cluster, add_palette_color, palette_num, num_blend, penalization )
-    tk_img_shape = post_img.shape
-    
-    # convert to uint8 format
-    post_img = PIL.Image.fromarray( np.clip( 0, 255, post_img*255. ).astype( np.uint8 ), 'RGB' )
-    tk_posterized_image = post_img
-    tk_palette_color = palette
-    tk_add_mix = add_mix_layers
-    
-    # post-smoothing
-    # smooth_post_img = post_smoothing( post_img, threshold )
-    
-    end = time.time()
-    print( "Finished. Total time: ", end - start )
-    
-    return post_img
