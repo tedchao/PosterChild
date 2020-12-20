@@ -6,9 +6,15 @@ from posterization_gui import *
 import numpy as np
 import cv2
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+try:
+    from PyQt5.QtCore import *
+    from PyQt5.QtGui import *
+    from PyQt5.QtWidgets import *
+except ImportError:
+    from PySide2.QtCore import *
+    from PySide2.QtGui import *
+    from PySide2.QtWidgets import *
+
 from PIL import Image
 # In command line: "pip install opencv-python-headless" to avoid qt complaining two set of binaries
 
@@ -314,7 +320,7 @@ class MainWindow( QWidget ):
         panel.setPixmap( QPixmap( qim ) )
     
     def add_to_imageList( self, image ):
-        self.imageList.append( image )
+        self.imageList.append( np.asarray( image ) )
         
     def load_image( self, path ):
         print ( "Loading Image." )
