@@ -471,7 +471,7 @@ class MainWindow( QWidget ):
             self.posterized_image_wo_smooth = np.clip( 0, 255, post_img*255. ).astype( np.uint8 )
             
             # post-smoothing
-            self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val )
+            self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
             
             end = time.time()
             print( "Finished. Total time: ", end - start )
@@ -560,9 +560,14 @@ class MainWindow( QWidget ):
                         QMessageBox.warning( self, 'Warning', 'Please upload your map with .jpg or .png extension.' )
                         return
                         
-                    self.saliency_map = cv2.cvtColor( cv2.imread( map[0] ), cv2.COLOR_BGR2RGB )
+                    self.saliency_map = cv2.imread( map[0] ) / 255
                     h_i, w_i, dim_i = self.input_image.shape
-                    h_s, w_s, dim_s = self.saliency_map.shape
+                    
+                    try:
+                        h_s, w_s, dim_s = self.saliency_map.shape
+                    except ValueError:
+                        h_s, w_s = self.saliency_map.shape
+                        dim_s = 0
                     
                     if ( h_i, w_i ) != ( h_s, w_s ):
                         QMessageBox.warning( self, 'Warning', 'Please upload your map with size:\n\n ' + '    ' + str( h_i ) + ' x  ' + str( w_i ) + '\n\n' + 'You upload the map with size:\n\n ' + '    ' + str( h_s ) + ' x  ' + str( w_s ) )
@@ -571,6 +576,18 @@ class MainWindow( QWidget ):
                     if dim_s == 3:
                         QMessageBox.warning( self, 'Warning', 'Please upload your map with grayscale.' )
                         return
+                    
+                    print( "Start smoothing." )
+                    self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = self.saliency_map )
+                    print( "Smoothing Finished." )
+                    
+                    self.add_to_paletteList( self.paletteList[-1] )
+                    self.add_to_imageList( self.posterized_image_w_smooth )
+                    
+                    self.set_image( self.imageLabel, self.imageList[-1] )
+                    
+                    # update current index position
+                    self.current_image_indx = len( self.imageList ) - 1
                     
                     
                     
