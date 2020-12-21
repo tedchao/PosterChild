@@ -2,6 +2,7 @@
 
 import sys
 from posterization_gui import *
+import simplepalettes
 
 import numpy as np
 import cv2
@@ -14,11 +15,11 @@ except ImportError:
     from PySide2.QtCore import *
     from PySide2.QtGui import *
     from PySide2.QtWidgets import *
-
+    
 from PIL import Image
 # In command line: "pip install opencv-python-headless" to avoid qt complaining two set of binaries
 
-#from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QPushButton
+### This sometimes happens: 'qt.gui.icc: fromIccProfile: failed minimal tag size sanity'
 
 
 class MainWindow( QWidget ):
@@ -45,8 +46,15 @@ class MainWindow( QWidget ):
         self.imageLabel.setMovie( self.gif )
         self.gif.start()
         
+        ### palette images
+        self.paletteLabel = QLabel()
+        self.paletteLabel.setPixmap( QPixmap() )
+        
         #### Variables
         self.imagePath = ""
+        self.palette = None
+        self.show_palette = 0
+        self.show_input = 0
         self.blur_slider_val = 0.1      # default
         self.binary_slider_val = 1.0    # default
         self.cluster_slider_val = 20    # default
@@ -54,6 +62,7 @@ class MainWindow( QWidget ):
         self.blend_slider_val = 3       # default
         self.current_image_indx = -1    # Track the current image index in the image list
         self.imageList = []
+        self.paletteList = [-1 * np.ones( ( 1, 1, 1 ) )]
         self.input_image = None         # Store it as np array
         self.posterized_image_wo_smooth = -1 * np.ones( ( 1, 1, 1 ) )      # Store it as np array
         self.posterized_image_w_smooth = -1 * np.ones( ( 1, 1, 1 ) )       # Store it as np array
@@ -62,7 +71,8 @@ class MainWindow( QWidget ):
         #### BOXES
         btns_box = QVBoxLayout() # set bottons' box
         img_box = QHBoxLayout() # set image's box
-        pages_box = QHBoxLayout() # set next-previous box
+        pages_box = QVBoxLayout() # set next-previous box
+        show_hide_box = QVBoxLayout()
         
         
         #### BUTTONS
@@ -84,6 +94,12 @@ class MainWindow( QWidget ):
         self.smooth_btn.setToolTip( 'Press the button to <b>re-smooth</b> your posterized image.' ) 
         self.smooth_btn.setMaximumWidth( 150 )
         
+        # button for loading the saliency map
+        self.map_btn = QPushButton( 'Load blurring map?' )
+        self.map_btn.clicked.connect( self.pop_up_load_saliency_map )
+        self.map_btn.setToolTip( 'Press the button to <b>load</b> your own map to blur.' ) 
+        self.map_btn.setMaximumWidth( 150 )
+        
         # button for re-smoothing the posterized image
         self.save_btn = QPushButton( 'Save current image' )
         self.save_btn.clicked.connect( self.save_current_image )
@@ -95,12 +111,23 @@ class MainWindow( QWidget ):
         self.previous_btn = QPushButton( '<<<-- See Previous' )
         self.previous_btn.clicked.connect( self.paste_previous_image )
         self.previous_btn.setToolTip( 'Press the button to see your <b>previous</b> image in the gallory.' ) 
-        self.previous_btn.setMaximumWidth( 150 )
+        self.previous_btn.setMaximumWidth( 165 )
         
         self.next_btn = QPushButton( 'See Next -->>>' )
         self.next_btn.clicked.connect( self.paste_next_image )
         self.next_btn.setToolTip( 'Press the button to see your <b>next</b> image in the gallory.' ) 
-        self.next_btn.setMaximumWidth( 150 )
+        self.next_btn.setMaximumWidth( 165 )
+        
+        #### Show/Hide buttons
+        self.palette_btn = QPushButton( 'Show/Hide palette' )
+        self.palette_btn.clicked.connect( self.show_hide_palette )
+        self.palette_btn.setToolTip( 'Press the button to <b>show</b> or <b>hide</b> the palette.' ) 
+        self.palette_btn.setMaximumWidth( 165 )
+        
+        self.og_img_btn = QPushButton( 'Show/Hide input image' )
+        self.og_img_btn.clicked.connect( self.show_hide_input_image )
+        self.og_img_btn.setToolTip( 'Press the button to <b>show</b> your input image.' ) 
+        self.og_img_btn.setMaximumWidth( 165 )
         
         
         #### SLIDERS
@@ -201,6 +228,7 @@ class MainWindow( QWidget ):
         btns_box.addWidget( self.img_btn )
         btns_box.addWidget( self.posterize_btn )
         btns_box.addWidget( self.smooth_btn )
+        btns_box.addWidget( self.map_btn )
         btns_box.addWidget( self.save_btn )
         
         btns_box.addStretch(20)
@@ -239,18 +267,25 @@ class MainWindow( QWidget ):
         
         # Image box
         img_box.addStretch(1)
-        img_box.addWidget( self.imageLabel )
+        img_box.addWidget( self.paletteLabel )
         img_box.addStretch(1)
+        img_box.addWidget( self.imageLabel )
+        img_box.addStretch(4)
         
         # Previous-next box
         pages_box.addWidget( self.previous_btn )
-        pages_box.addWidget( self.next_btn )
+        show_hide_box.addWidget( self.next_btn )
+        
+        # Show-hide box
+        pages_box.addWidget( self.palette_btn )
+        show_hide_box.addWidget( self.og_img_btn )
         
         # Set grid layout
         grid = QGridLayout()
         grid.addLayout( btns_box, 1, 0 )
         grid.addLayout( pages_box, 0, 1 )
-        grid.addLayout( img_box, 1, 1 )
+        grid.addLayout( show_hide_box, 0, 2 )
+        grid.addLayout( img_box, 1, 1, 1, 2 )
         self.setLayout(grid) 
         
         self.show()
@@ -289,7 +324,7 @@ class MainWindow( QWidget ):
     def paste_previous_image( self ):
         self.current_image_indx -= 1
         if self.current_image_indx == -2:
-            QMessageBox.warning( self,'Warning','Please select an image first!' )
+            QMessageBox.warning( self,'Warning','Please select an image first.' )
             self.current_image_indx += 1
             
         elif self.current_image_indx == -1:
@@ -297,12 +332,16 @@ class MainWindow( QWidget ):
             self.current_image_indx += 1
             
         else:
+            if self.current_image_indx != 0 and self.show_palette == 1:
+                self.set_image( self.paletteLabel, self.paletteList[self.current_image_indx] )
+            else:   # input image has no palette, so place a blank
+                self.paletteLabel.setPixmap( QPixmap() )
             self.set_image( self.imageLabel, self.imageList[self.current_image_indx] )
         
     def paste_next_image( self ):
         self.current_image_indx += 1
         if self.current_image_indx == 0:
-            QMessageBox.warning( self,'Warning','Please select an image first!' )
+            QMessageBox.warning( self,'Warning','Please select an image first.' )
             self.current_image_indx -= 1
             
         elif self.current_image_indx == len( self.imageList ):
@@ -310,6 +349,10 @@ class MainWindow( QWidget ):
             self.current_image_indx -= 1
             
         else:
+            if self.current_image_indx != 0 and self.show_palette == 1:
+                self.set_image( self.paletteLabel, self.paletteList[self.current_image_indx] )
+            else:   # input image has no palette, so place a blank
+                self.paletteLabel.setPixmap( QPixmap() )
             self.set_image( self.imageLabel, self.imageList[self.current_image_indx] )
     
     #Load new image function
@@ -321,6 +364,9 @@ class MainWindow( QWidget ):
     
     def add_to_imageList( self, image ):
         self.imageList.append( np.asarray( image ) )
+        
+    def add_to_paletteList( self, palette ):
+        self.paletteList.append( np.asarray( palette ) )
         
     def load_image( self, path ):
         print ( "Loading Image." )
@@ -334,14 +380,37 @@ class MainWindow( QWidget ):
         self.imageLabel.setPixmap( QPixmap( path ) )
         self.imagePath = path
     
+    def show_hide_palette( self ):
+        if self.imagePath == "":
+            QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
+            
+        elif self.paletteList[-1][0, 0, 0] == -1:
+            QMessageBox.warning( self, 'Warning', 'You do not have palette. Please posterize your image first.' )
+        else:
+            self.show_palette = 1 - self.show_palette
+            if self.current_image_indx != 0 and self.show_palette == 1:
+                self.set_image( self.paletteLabel, self.paletteList[self.current_image_indx] )
+            else:   # input image has no palette, so place a blank
+                self.paletteLabel.setPixmap( QPixmap() )
+        
+    def show_hide_input_image( self ):
+        if self.imagePath == "":
+            QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
+        elif self.imagePath != "" and self.posterized_image_wo_smooth[0][0][0] == -1:
+            QMessageBox.warning( self, 'Warning', 'This is your input image.' )
+        else:
+            self.show_input = 1 - self.show_input
+            if self.show_input == 1:
+                self.set_image( self.imageLabel, self.imageList[0] )
+            else:
+                self.set_image( self.imageLabel, self.imageList[self.current_image_indx] )
     
     # posterization
     def posterize( self ):
-        print( "Start posterizing." )
-
         if self.imagePath == "":
-            QMessageBox.warning( self, 'Warning', 'Please select an image first' )
+            QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
         else:
+            print( "Start posterizing." )
             img_arr = np.asfarray( PIL.Image.open( self.imagePath ).convert( 'RGB' ) ) / 255.
             
             # algorithm starts
@@ -354,7 +423,11 @@ class MainWindow( QWidget ):
             # MLO
             post_img, final_colors, add_mix_layers, palette = \
             posterization( self.imagePath, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
-
+            
+            # save palette
+            # 'ascontiguousarray' to make a C contiguous copy 
+            self.palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( palette ) * 255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
+            
             # convert to uint8 format
             self.posterized_image_wo_smooth = np.clip( 0, 255, post_img*255. ).astype( np.uint8 )
             
@@ -364,7 +437,9 @@ class MainWindow( QWidget ):
             end = time.time()
             print( "Finished. Total time: ", end - start )
             
+            self.add_to_paletteList( self.palette )
             self.add_to_imageList( self.posterized_image_w_smooth )
+            
             self.set_image( self.imageLabel, self.imageList[-1] )
             
             # update current index position
@@ -373,17 +448,19 @@ class MainWindow( QWidget ):
     
     # re-smooth the image
     def smooth( self ):
-        print( "Start smoothing." )
         if self.imagePath == "":
             QMessageBox.warning( self,'Warning','Please select an image first!' )
         else:
             if self.posterized_image_wo_smooth[0][0][0] == -1:
                 QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
             else:
+                print( "Start smoothing." )
                 self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val )
                 print( "Smoothing Finished." )
                 
+                self.add_to_paletteList( self.paletteList[-1] )
                 self.add_to_imageList( self.posterized_image_w_smooth )
+                
                 self.set_image( self.imageLabel, self.imageList[-1] )
                 
                 # update current index position
@@ -393,12 +470,12 @@ class MainWindow( QWidget ):
     # function to save current image
     def save_current_image( self ):
         if self.imagePath == "":
-            QMessageBox.warning( self,'Warning','Please select an image first!' )
+            QMessageBox.warning( self,'Warning','Please select an image first.' )
         else:
             if self.posterized_image_wo_smooth[0][0][0] == -1:
-                QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
+                QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
             else:
-                reply = QMessageBox.question( self, 'Message', "Save your current image on this panel?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+                reply = QMessageBox.question( self, 'Message', "Are you sure to save your current image on this panel?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
                 
                 if reply == QMessageBox.Yes:
                     image_name = QFileDialog.getSaveFileName( self, 'Save Image' )
@@ -407,7 +484,21 @@ class MainWindow( QWidget ):
                     Image.fromarray( self.imageList[self.current_image_indx] ).save( image_name[0] + '.png')
                 else:
                     pass
-                    
+    
+    # load user's own blurring map
+    def pop_up_load_saliency_map( self ):
+        if self.imagePath == "":
+            QMessageBox.warning( self,'Warning','Please select an image first.' )
+        else:
+            if self.posterized_image_wo_smooth[0][0][0] == -1:
+                QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
+            else:
+                reply = QMessageBox.question( self, 'Message', "Do you have your own blurring map?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+                
+                if reply == QMessageBox.Yes:
+                    pass
+    
+    
     # Function if users tend to close the app
     def closeEvent( self, event ):
         reply = QMessageBox.question( self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
