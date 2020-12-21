@@ -1,7 +1,6 @@
 import sys
 import numpy as np
 import PIL.Image
-import PIL.ImageTk
 
 import gco
 
@@ -18,11 +17,6 @@ import time
 
 from . import simplepalettes
 from .simplify_convexhull import *
-
-from tkinter import *
-import tkinter.filedialog
-import tkinter.messagebox
-
 
 def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_blend ):
     '''

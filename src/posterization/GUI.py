@@ -3,6 +3,7 @@ from .posterization_gui import *
 from tkinter import *
 import tkinter.filedialog
 import tkinter.messagebox
+import PIL.ImageTk
 
 
 def posterized_pipline( path, img_arr, img_og, threshold, num_clusters, num_blend, palette_num, penalization ):
