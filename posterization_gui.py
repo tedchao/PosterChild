@@ -558,11 +558,18 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
         for i in range( margin, img.shape[0] - margin ):
             for j in range( margin, img.shape[1] - margin ):
                 
-                if dft_img[i, j] < threshold:
-                    window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
-                    
-                    median_color = get_median_color( window )
-                    filtered_img[i, j] = median_color
+                if not blur_map:
+                    if dft_img[i, j] < threshold:
+                        window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
+                        
+                        median_color = get_median_color( window )
+                        filtered_img[i, j] = median_color
+                else:
+                    if dft_img[i, j] < blur_map[i, j]:
+                        window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
+                        
+                        median_color = get_median_color( window )
+                        filtered_img[i, j] = median_color
                     
         return filtered_img
     
