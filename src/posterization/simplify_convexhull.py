@@ -4,7 +4,7 @@ import cvxopt
 from scipy.spatial import ConvexHull, Delaunay
 from scipy.sparse import coo_matrix
 from scipy.optimize import *
-from trimesh import TriMesh
+from .trimesh import TriMesh
 
 
 # convexhull file I/O

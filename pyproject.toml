@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "posterization"
 version = "0.1.0"
-description = ""
+description = "Automatically creates poster-style art from photographs"
 authors = ["Ted Chao <cchao8@gmu.edu>"]
 
 [tool.poetry.dependencies]
@@ -21,7 +21,54 @@ PySide2 = "^5.15.2"
 
 [tool.poetry.dev-dependencies]
 pyinstaller = "^4.1"
+briefcase = "^0.3.3"
 
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
+
+[tool.briefcase]
+project_name = "Posterization"
+bundle = "edu.gmu.cs.cragl"
+version = "0.1.0"
+url = "https://cragl.cs.gmu.edu/posterization"
+license = "Other"
+author = 'Ted Chao'
+author_email = "cchao8@gmu.edu"
+
+[tool.briefcase.app.posterization]
+formal_name = "Posterization"
+description = "Automatically creates poster-style art from photographs"
+icon = "src/posterization/resources/posterization"
+sources = ['src/posterization']
+requires = [
+    "numpy",
+    "git+https://github.com/yig/pyGCO@buil-win",
+    "pillow",
+    "scipy",
+    "scikit-image",
+    "scikit-learn",
+    "cairocffi",
+    "pycairo",
+    "numba",
+    "cvxopt",
+    "opencv-python-headless",
+    "PySide2"
+    ]
+
+[tool.briefcase.app.posterization.macOS]
+requires = []
+
+[tool.briefcase.app.posterization.linux]
+requires = []
+system_requires = []
+
+[tool.briefcase.app.posterization.windows]
+requires = []
+
+# Mobile deployments
+[tool.briefcase.app.posterization.iOS]
+requires = []
+
+[tool.briefcase.app.posterization.android]
+requires = []

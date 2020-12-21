@@ -14,7 +14,7 @@ import random
 import time
 
 import simplepalettes
-from simplify_convexhull import *
+from .simplify_convexhull import *
 
 def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_blend ):
     '''

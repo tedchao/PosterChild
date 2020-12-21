@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import sys
-from posterization_gui import *
+from pathlib import Path
+from .posterization_gui import *
 
 import numpy as np
 import cv2
@@ -40,7 +41,7 @@ class MainWindow( QWidget ):
         #self.setStyleSheet("background-color: white;") 
         
         # Set the welcome icon in GIF
-        self.gif = QMovie( "simpson.gif" )
+        self.gif = QMovie( str(Path(__file__).parent/"simpson.gif") )
         self.imageLabel = QLabel()
         self.imageLabel.setMovie( self.gif )
         self.gif.start()

@@ -10,7 +10,7 @@ from skimage.morphology import binary_opening
 from sklearn.cluster import KMeans
 
 from math import *
-from trimesh import TriMesh
+from .trimesh import TriMesh
 
 import cvxopt
 import potrace
@@ -18,8 +18,8 @@ import cairo
 import random
 import time
 
-import simplepalettes
-import extract_brush
+from . import simplepalettes
+from . import extract_brush
 
 
 # Vectorzied a raster image

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from posterization_gui import *
+from .posterization_gui import *
 from tkinter import *
 import tkinter.filedialog
 import tkinter.messagebox

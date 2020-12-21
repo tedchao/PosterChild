@@ -1,0 +1,10 @@
+Metadata-Version: 2.1
+Briefcase-Version: 0.3.3
+Name: posterization
+Formal-Name: Posterization
+App-ID: edu.gmu.cs.cragl.posterization
+Version: 0.1.0
+Home-page: https://cragl.cs.gmu.edu/posterization
+Author: Ted Chao
+Author-email: cchao8@gmu.edu
+Summary: Automatically creates poster-style art from photographs

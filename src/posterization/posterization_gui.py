@@ -16,8 +16,8 @@ from math import *
 import random
 import time
 
-import simplepalettes
-from simplify_convexhull import *
+from . import simplepalettes
+from .simplify_convexhull import *
 
 from tkinter import *
 import tkinter.filedialog
