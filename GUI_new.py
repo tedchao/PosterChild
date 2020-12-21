@@ -17,10 +17,10 @@ except ImportError:
     from PySide2.QtWidgets import *
     
 from PIL import Image
+
 # In command line: "pip install opencv-python-headless" to avoid qt complaining two set of binaries
 
 ### This sometimes happens: 'qt.gui.icc: fromIccProfile: failed minimal tag size sanity'
-
 
 class MainWindow( QWidget ):
     
@@ -53,17 +53,23 @@ class MainWindow( QWidget ):
         #### Variables
         self.imagePath = ""
         self.palette = None
+        
         self.show_palette = 0
         self.show_input = 0
+        
+        self.blur_window_slider_val = 7 # default
         self.blur_slider_val = 0.1      # default
         self.binary_slider_val = 1.0    # default
         self.cluster_slider_val = 20    # default
         self.palette_slider_val = 6     # default
         self.blend_slider_val = 3       # default
         self.current_image_indx = -1    # Track the current image index in the image list
+        
         self.imageList = []
         self.paletteList = [-1 * np.ones( ( 1, 1, 1 ) )]
+        
         self.input_image = None         # Store it as np array
+        self.saliency_map = None
         self.posterized_image_wo_smooth = -1 * np.ones( ( 1, 1, 1 ) )      # Store it as np array
         self.posterized_image_w_smooth = -1 * np.ones( ( 1, 1, 1 ) )       # Store it as np array
         
@@ -95,16 +101,22 @@ class MainWindow( QWidget ):
         self.smooth_btn.setMaximumWidth( 150 )
         
         # button for loading the saliency map
-        self.map_btn = QPushButton( 'Load blurring map?' )
+        self.map_btn = QPushButton( 'Blur with your map?' )
         self.map_btn.clicked.connect( self.pop_up_load_saliency_map )
         self.map_btn.setToolTip( 'Press the button to <b>load</b> your own map to blur.' ) 
         self.map_btn.setMaximumWidth( 150 )
-        
-        # button for re-smoothing the posterized image
+
+        # button for saving the posterized image
         self.save_btn = QPushButton( 'Save current image' )
         self.save_btn.clicked.connect( self.save_current_image )
         self.save_btn.setToolTip( 'Press the button to <b>save</b> your current image.' ) 
         self.save_btn.setMaximumWidth( 150 )
+        
+        # button for saving the palette
+        self.save_palette_btn = QPushButton( 'Save palette' )
+        self.save_palette_btn.clicked.connect( self.save_current_palette )
+        self.save_palette_btn.setToolTip( 'Press the button to <b>save</b> the palette.' ) 
+        self.save_palette_btn.setMaximumWidth( 150 )
         
         
         #### Previous-next buttons
@@ -181,15 +193,27 @@ class MainWindow( QWidget ):
         self.blur_sld.setMaximumWidth( 200 )
         self.blur_sld.valueChanged.connect( self.blur_change_slider )
         
+        # slider for blurring threshold
+        self.blur_window_sld = QSlider( Qt.Horizontal )
+        self.blur_window_sld.setRange( 0, 3 )
+        self.blur_window_sld.setFocusPolicy( Qt.NoFocus )
+        self.blur_window_sld.setSliderPosition( ( self.blur_window_slider_val - 3 ) / 2 )
+        self.blur_window_sld.setPageStep( 1 )
+        self.blur_window_sld.setToolTip( 'Fine-tune the slider to get your desired blurring window size.' ) 
+        self.blur_window_sld.setMaximumWidth( 200 )
+        self.blur_window_sld.valueChanged.connect( self.blur_window_change_slider )
+        
         
         ### LABELS
         # labels
+        self.blur_window_text = QLabel( 'Blurring Window Size (Default: 7):' )
         self.blur_text = QLabel( 'Blurring Threshold (Default: 0.1):' )
         self.binary_text = QLabel( 'Richness value (Default: 1.0):' )
         self.cluster_text = QLabel( 'Outlier value (Default: 20):' )
         self.palette_text = QLabel( 'Main palette size (Default: 6):' )
         self.blend_text = QLabel( 'Number of blending ways (Default: 3):' )
         
+        self.blur_window_text.setMaximumWidth( 230 )
         self.blur_text.setMaximumWidth( 230 )
         self.binary_text.setMaximumWidth( 230 )
         self.cluster_text.setMaximumWidth( 230 )
@@ -197,6 +221,10 @@ class MainWindow( QWidget ):
         self.blend_text.setMaximumWidth( 230 )
         
         # label text for blur slider
+        self.blur_window_sld_label = QLabel( '7' )
+        self.blur_window_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
+        self.blur_window_sld_label.setMinimumWidth( 80 )
+        
         self.blur_sld_label = QLabel( '0.1' )
         self.blur_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
         self.blur_sld_label.setMinimumWidth( 80 )
@@ -230,6 +258,7 @@ class MainWindow( QWidget ):
         btns_box.addWidget( self.smooth_btn )
         btns_box.addWidget( self.map_btn )
         btns_box.addWidget( self.save_btn )
+        btns_box.addWidget( self.save_palette_btn )
         
         btns_box.addStretch(20)
         btns_box.addStretch(2)
@@ -261,6 +290,12 @@ class MainWindow( QWidget ):
         btns_box.addWidget( self.blur_sld )
         btns_box.addWidget( self.blur_sld_label )
         btns_box.addStretch(2)
+        
+        btns_box.addStretch(2)
+        btns_box.addWidget( self.blur_window_text )
+        btns_box.addWidget( self.blur_window_sld )
+        btns_box.addWidget( self.blur_window_sld_label )
+        btns_box.addStretch(2)
         btns_box.addStretch(20)
         
         btns_box.addStretch(1)
@@ -291,6 +326,10 @@ class MainWindow( QWidget ):
         self.show()
     
     # Slider functions
+    def blur_window_change_slider(self, value):
+        self.blur_window_slider_val = 2 * value + 3
+        self.blur_window_sld_label.setText( str( 2 * value + 3 ) )
+        
     def blur_change_slider(self, value):
         self.blur_slider_val = value / 100
         self.blur_sld_label.setText( str( value / 100 ) )
@@ -455,7 +494,7 @@ class MainWindow( QWidget ):
                 QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
             else:
                 print( "Start smoothing." )
-                self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val )
+                self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
                 print( "Smoothing Finished." )
                 
                 self.add_to_paletteList( self.paletteList[-1] )
@@ -485,6 +524,24 @@ class MainWindow( QWidget ):
                 else:
                     pass
     
+    # function to save current image
+    def save_current_palette( self ):
+        if self.imagePath == "":
+            QMessageBox.warning( self,'Warning','Please select an image first.' )
+        else:
+            if self.posterized_image_wo_smooth[0][0][0] == -1:
+                QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
+            else:
+                reply = QMessageBox.question( self, 'Message', "Are you sure to save your current palette on this panel?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+                
+                if reply == QMessageBox.Yes:
+                    image_name = QFileDialog.getSaveFileName( self, 'Save Palette' )
+                    if not image_name:
+                        return
+                    Image.fromarray( self.paletteList[self.current_image_indx] ).save( image_name[0] + '.png')
+                else:
+                    pass
+    
     # load user's own blurring map
     def pop_up_load_saliency_map( self ):
         if self.imagePath == "":
@@ -493,11 +550,30 @@ class MainWindow( QWidget ):
             if self.posterized_image_wo_smooth[0][0][0] == -1:
                 QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
             else:
-                reply = QMessageBox.question( self, 'Message', "Do you have your own blurring map?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+                reply = QMessageBox.question( self, 'Message', "Do you have your own blurring map (in grayscale and in .jpg/.png extension)?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
                 
                 if reply == QMessageBox.Yes:
-                    pass
-    
+                    map = QFileDialog.getOpenFileName( self, 'Select file' )
+                    map_path = map[0]
+                    
+                    if map_path[-4:] not in ['.jpg', '.png']:
+                        QMessageBox.warning( self, 'Warning', 'Please upload your map with .jpg or .png extension.' )
+                        return
+                        
+                    self.saliency_map = cv2.cvtColor( cv2.imread( map[0] ), cv2.COLOR_BGR2RGB )
+                    h_i, w_i, dim_i = self.input_image.shape
+                    h_s, w_s, dim_s = self.saliency_map.shape
+                    
+                    if ( h_i, w_i ) != ( h_s, w_s ):
+                        QMessageBox.warning( self, 'Warning', 'Please upload your map with size:\n\n ' + '    ' + str( h_i ) + ' x  ' + str( w_i ) + '\n\n' + 'You upload the map with size:\n\n ' + '    ' + str( h_s ) + ' x  ' + str( w_s ) )
+                        return
+                    
+                    if dim_s == 3:
+                        QMessageBox.warning( self, 'Warning', 'Please upload your map with grayscale.' )
+                        return
+                    
+                    
+                    
     
     # Function if users tend to close the app
     def closeEvent( self, event ):
