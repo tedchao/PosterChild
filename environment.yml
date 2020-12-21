@@ -18,6 +18,7 @@ dependencies:
   - cvxopt
   - pip
   - git
+  - pyside2
   - pip:
      - git+https://github.com/yig/pyGCO@buil-win
 prefix: /Users/yotam/opt/miniconda3/envs/posterization
