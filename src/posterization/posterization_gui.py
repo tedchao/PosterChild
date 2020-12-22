@@ -525,7 +525,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
 ######################################################
 
 
-def post_smoothing( img_mlo, threshold ):
+def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
     
     print( 'Start smoothing images... ')
     
@@ -552,11 +552,18 @@ def post_smoothing( img_mlo, threshold ):
         for i in range( margin, img.shape[0] - margin ):
             for j in range( margin, img.shape[1] - margin ):
                 
-                if dft_img[i, j] < threshold:
-                    window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
-                    
-                    median_color = get_median_color( window )
-                    filtered_img[i, j] = median_color
+                if not blur_map:
+                    if dft_img[i, j] < threshold:
+                        window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
+                        
+                        median_color = get_median_color( window )
+                        filtered_img[i, j] = median_color
+                else:
+                    if dft_img[i, j] < blur_map[i, j]:
+                        window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
+                        
+                        median_color = get_median_color( window )
+                        filtered_img[i, j] = median_color
                     
         return filtered_img
     
@@ -579,12 +586,12 @@ def post_smoothing( img_mlo, threshold ):
     img_back = np.fft.ifft2( f_ishift )
     img_back = np.abs( img_back ) / 255.    # black: 0, white: 1
     
-    cv2_img_mlo = medianBlur_truncate( cv2_img_mlo, img_back, 7 )
-    cv2_img_mlo = medianBlur_truncate( cv2_img_mlo, img_back, 7 )
-    cv2_img_mlo = medianBlur_truncate( cv2_img_mlo, img_back, 7 )
+    cv2_img_mlo = medianBlur_truncate( cv2_img_mlo, img_back, blur_window )
+    cv2_img_mlo = medianBlur_truncate( cv2_img_mlo, img_back, blur_window )
+    cv2_img_mlo = medianBlur_truncate( cv2_img_mlo, img_back, blur_window )
     
     cv2_img_mlo = cv2.cvtColor( cv2_img_mlo, cv2.COLOR_BGR2RGB)
     
     print( 'Image smoothing Done!' )
     
-    return PIL.Image.fromarray( cv2_img_mlo )
+    return cv2_img_mlo
