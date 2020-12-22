@@ -561,24 +561,19 @@ class MainWindow( QWidget ):
                         return
                         
                     self.saliency_map = cv2.imread( map[0] ) / 255
+                    h_s, w_s, dim_s = self.saliency_map.shape
                     h_i, w_i, dim_i = self.input_image.shape
-                    
-                    try:
-                        h_s, w_s, dim_s = self.saliency_map.shape
-                    except ValueError:
-                        h_s, w_s = self.saliency_map.shape
-                        dim_s = 0
                     
                     if ( h_i, w_i ) != ( h_s, w_s ):
                         QMessageBox.warning( self, 'Warning', 'Please upload your map with size:\n\n ' + '    ' + str( h_i ) + ' x  ' + str( w_i ) + '\n\n' + 'You upload the map with size:\n\n ' + '    ' + str( h_s ) + ' x  ' + str( w_s ) )
                         return
                     
-                    if dim_s == 3:
+                    if not np.array_equal( self.saliency_map[:,:,0], self.saliency_map[:,:,1] ) or not np.array_equal( self.saliency_map[:,:,1], self.saliency_map[:,:,2] ):
                         QMessageBox.warning( self, 'Warning', 'Please upload your map with grayscale.' )
                         return
                     
                     print( "Start smoothing." )
-                    self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = self.saliency_map )
+                    self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = self.saliency_map[:, :, 0].tolist() )    # bugs about numba
                     print( "Smoothing Finished." )
                     
                     self.add_to_paletteList( self.paletteList[-1] )
@@ -588,8 +583,6 @@ class MainWindow( QWidget ):
                     
                     # update current index position
                     self.current_image_indx = len( self.imageList ) - 1
-                    
-                    
                     
     
     # Function if users tend to close the app
