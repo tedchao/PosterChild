@@ -3,9 +3,9 @@
 block_cipher = None
 
 
-a = Analysis(['posterization_gui.py'],
-             pathex=['/Users/yotam/Work/GMU/posterization/code'],
-             binaries=[('gco-patch/libcgco.cpython-38-darwin.so','.')],
+a = Analysis(['src/pyinstaller_stub.py'],
+             pathex=['/Users/yotam/Work/GMU/posterization/code/src'],
+             binaries=[('gco-patch/libcgco.cpython-38-darwin.so','gco')],
              datas=[],
              hiddenimports=[],
              hookspath=[],
@@ -21,7 +21,7 @@ exe = EXE(pyz,
           a.scripts,
           [],
           exclude_binaries=True,
-          name='posterization_gui',
+          name='posterization',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
@@ -34,8 +34,8 @@ coll = COLLECT(exe,
                strip=False,
                upx=True,
                upx_exclude=[],
-               name='posterization_gui')
+               name='posterization')
 app = BUNDLE(coll,
-             name='posterization_gui.app',
+             name='posterization.app',
              icon=None,
              bundle_identifier=None)
