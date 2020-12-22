@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['src/pyinstaller_stub.py'],
+a = Analysis(['src/gui.py'],
              pathex=['/Users/yotam/Work/GMU/posterization/code/src'],
              binaries=[('gco-patch/libcgco.cpython-38-darwin.so','gco')],
              datas=[],

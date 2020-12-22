@@ -13,7 +13,7 @@ To create a double-clickable .app for macOS users, run (inside a poetry shell):
 
     pyinstaller posterization_gui.spec
 
-A double-clickable `posterization_gui.app` will appear inside the `dist/` directory.
+A double-clickable `posterization.app` will appear inside the `dist/` directory.
 
 ### Windows
 
@@ -28,8 +28,10 @@ Then:
 
 Launch the GUI:
 
-    python GUI.py
+    cd src
+    python -m posterization
 
-Command line example:
+Command line example (probably won't work because of relative imports):
 
-    python posterization.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
+    cd src
+    python posterization/posterization.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
