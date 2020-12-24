@@ -650,7 +650,12 @@ class MainWindow( QWidget ):
                     messagebox = TimerMessageBox( 1, self )
                     messagebox.open()
                     
-                    self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = tuple( map( tuple, self.saliency_map[:, :, 0] ) ) )    # bugs: 'tuple' object is not callable
+                    self.posterized_image_w_smooth = post_smoothing(
+                        PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ),
+                        self.blur_slider_val,
+                        blur_window = self.blur_window_slider_val,
+                        blur_map = self.saliency_map[:, :, 0]
+                        )    # bugs: 'tuple' object is not callable
                     print( "Smoothing Finished." )
                     
                     self.add_to_paletteList( self.paletteList[-1] )
