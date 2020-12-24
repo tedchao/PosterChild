@@ -13,7 +13,7 @@ To create a double-clickable .app for macOS users, run (inside a poetry shell):
 
     pyinstaller posterization_gui.spec
 
-A double-clickable `posterization.app` will appear inside the `dist/` directory.
+A double-clickable `Posterization GUI.app` will appear inside the `dist/` directory.
 
 ### Windows
 
