@@ -522,7 +522,7 @@ class MainWindow( QWidget ):
             start = time.time()
             
             messagebox = TimerMessageBox( 1, self )
-            messagebox.exec_()
+            messagebox.open()
                 
             # K-means
             img_arr_re = img_arr.reshape( ( -1, 3 ) )
@@ -565,7 +565,7 @@ class MainWindow( QWidget ):
                 print( "Start smoothing." )
                 
                 messagebox = TimerMessageBox( 1, self )
-                messagebox.exec_()
+                messagebox.open()
                 
                 self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
                 print( "Smoothing Finished." )
@@ -648,7 +648,7 @@ class MainWindow( QWidget ):
                     print( "Start smoothing." )
                     
                     messagebox = TimerMessageBox( 1, self )
-                    messagebox.exec_()
+                    messagebox.open()
                     
                     self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = tuple( map( tuple, self.saliency_map[:, :, 0] ) ) )    # bugs: 'tuple' object is not callable
                     print( "Smoothing Finished." )
