@@ -22,6 +22,28 @@ from PIL import Image
 
 ### This sometimes happens: 'qt.gui.icc: fromIccProfile: failed minimal tag size sanity'
 
+class TimerMessageBox( QMessageBox ):
+    def __init__( self, timeout = 3, parent = None ):
+        super( TimerMessageBox, self ).__init__( parent )
+        self.setWindowTitle( "Algorithm is processing your image. Please hold on." )
+        self.time_to_wait = timeout
+        self.setText( "Algorithm is processing your image. Please hold on." )
+        self.setStandardButtons( QMessageBox.NoButton )
+        self.timer = QTimer()
+        self.timer.setInterval( 100 )
+        self.timer.timeout.connect( self.changeContent )
+        self.timer.start()
+        
+    def changeContent( self ):
+        self.time_to_wait -= 1
+        if self.time_to_wait <= 0:
+            self.close()
+            
+    def closeEvent( self, event ):
+        self.timer.stop()
+        event.accept()
+
+
 class MainWindow( QWidget ):
     
     def __init__( self ):
@@ -193,7 +215,7 @@ class MainWindow( QWidget ):
         
         # slider for binary penalization
         self.binary_sld = QSlider( Qt.Horizontal )
-        self.binary_sld.setRange( 0, 200 )
+        self.binary_sld.setRange( 1, 200 )
         self.binary_sld.setFocusPolicy( Qt.NoFocus )
         self.binary_sld.setSliderPosition( int( 100 * self.binary_slider_val ) )
         self.binary_sld.setPageStep( 1 )
@@ -499,6 +521,9 @@ class MainWindow( QWidget ):
             # algorithm starts
             start = time.time()
             
+            messagebox = TimerMessageBox( 1, self )
+            messagebox.exec_()
+                
             # K-means
             img_arr_re = img_arr.reshape( ( -1, 3 ) )
             img_arr_cluster = get_kmeans_cluster_image( self.cluster_slider_val, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
@@ -538,6 +563,10 @@ class MainWindow( QWidget ):
                 QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
             else:
                 print( "Start smoothing." )
+                
+                messagebox = TimerMessageBox( 1, self )
+                messagebox.exec_()
+                
                 self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
                 print( "Smoothing Finished." )
                 
@@ -617,7 +646,11 @@ class MainWindow( QWidget ):
                         return
                     
                     print( "Start smoothing." )
-                    self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = self.saliency_map[:, :, 0].tolist() )    # bugs about numba
+                    
+                    messagebox = TimerMessageBox( 1, self )
+                    messagebox.exec_()
+                    
+                    self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = tuple( map( tuple, self.saliency_map[:, :, 0] ) ) )    # bugs: 'tuple' object is not callable
                     print( "Smoothing Finished." )
                     
                     self.add_to_paletteList( self.paletteList[-1] )
@@ -647,58 +680,4 @@ def main():
     
 if __name__ == '__main__':
     main()
-    
-
-
-
-'''
-algorithm_btns_box.addStretch(20)
-
-### parameters for posterization 
-
-algorithm_btns_box.addStretch(2)
-algorithm_btns_box.addWidget( self.palette_text )
-algorithm_btns_box.addWidget( self.palette_sld )
-algorithm_btns_box.addWidget( self.palette_sld_label )
-algorithm_btns_box.addStretch(2)
-
-algorithm_btns_box.addStretch(2)
-algorithm_btns_box.addWidget( self.blend_text )
-algorithm_btns_box.addWidget( self.blend_sld )
-algorithm_btns_box.addWidget( self.blend_sld_label )
-algorithm_btns_box.addStretch(2)
-
-algorithm_btns_box.addStretch(2)
-algorithm_btns_box.addWidget( self.cluster_text )
-algorithm_btns_box.addWidget( self.cluster_sld )
-algorithm_btns_box.addWidget( self.cluster_sld_label )
-algorithm_btns_box.addStretch(2)
-
-algorithm_btns_box.addStretch(2)
-algorithm_btns_box.addWidget( self.binary_text )
-algorithm_btns_box.addWidget( self.binary_sld )
-algorithm_btns_box.addWidget( self.binary_sld_label )
-algorithm_btns_box.addStretch(2)
-
-algorithm_btns_box.addWidget( self.posterize_btn )
-
-### parameters for smoothing
-
-algorithm_btns_box.addStretch(2)
-algorithm_btns_box.addWidget( self.blur_text )
-algorithm_btns_box.addWidget( self.blur_sld )
-algorithm_btns_box.addWidget( self.blur_sld_label )
-algorithm_btns_box.addStretch(2)
-
-algorithm_btns_box.addStretch(2)
-algorithm_btns_box.addWidget( self.blur_window_text )
-algorithm_btns_box.addWidget( self.blur_window_sld )
-algorithm_btns_box.addWidget( self.blur_window_sld_label )
-algorithm_btns_box.addStretch(2)
-
-algorithm_btns_box.addWidget( self.smooth_btn )
-algorithm_btns_box.addWidget( self.map_btn )
-
-algorithm_btns_box.addStretch(20)
-'''
     
