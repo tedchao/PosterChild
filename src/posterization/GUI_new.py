@@ -24,6 +24,28 @@ from PIL import Image
 
 ### This sometimes happens: 'qt.gui.icc: fromIccProfile: failed minimal tag size sanity'
 
+class TimerMessageBox( QMessageBox ):
+    def __init__( self, timeout = 3, parent = None ):
+        super( TimerMessageBox, self ).__init__( parent )
+        self.setWindowTitle( "Algorithm is processing your image. Please hold on." )
+        self.time_to_wait = timeout
+        self.setText( "Algorithm is processing your image. Please hold on." )
+        self.setStandardButtons( QMessageBox.NoButton )
+        self.timer = QTimer()
+        self.timer.setInterval( 100 )
+        self.timer.timeout.connect( self.changeContent )
+        self.timer.start()
+        
+    def changeContent( self ):
+        self.time_to_wait -= 1
+        if self.time_to_wait <= 0:
+            self.close()
+            
+    def closeEvent( self, event ):
+        self.timer.stop()
+        event.accept()
+
+
 class MainWindow( QWidget ):
     
     def __init__( self ):
@@ -77,7 +99,18 @@ class MainWindow( QWidget ):
         
         
         #### BOXES
-        btns_box = QVBoxLayout() # set bottons' box
+        btns_io_box = QVBoxLayout() # set bottons' box for I/O
+        
+        # algorithm_btns_box = QVBoxLayout() # set bottons' box for algorithms
+        sld_box_palette = QHBoxLayout()
+        sld_box_blend = QHBoxLayout()
+        sld_box_cluster = QHBoxLayout()
+        sld_box_binary = QHBoxLayout()
+        sld_box_blur = QHBoxLayout()
+        sld_box_window = QHBoxLayout()
+        
+        blur_box = QHBoxLayout()
+        
         img_box = QHBoxLayout() # set image's box
         pages_box = QVBoxLayout() # set next-previous box
         show_hide_box = QVBoxLayout()
@@ -85,7 +118,7 @@ class MainWindow( QWidget ):
         
         #### BUTTONS
         # button for selecting an input image
-        self.img_btn = QPushButton( 'Select an image!' )
+        self.img_btn = QPushButton( 'Choose image' )
         self.img_btn.clicked.connect( self.get_image )
         self.img_btn.setToolTip( 'Press the button to <b>select</b> an image.' ) 
         self.img_btn.setMaximumWidth( 150 )
@@ -97,16 +130,16 @@ class MainWindow( QWidget ):
         self.posterize_btn.setMaximumWidth( 150 )
         
         # button for re-smoothing the posterized image
-        self.smooth_btn = QPushButton( 'Re-smooth?' )
+        self.smooth_btn = QPushButton( 'Re-smooth' )
         self.smooth_btn.clicked.connect( self.smooth )
         self.smooth_btn.setToolTip( 'Press the button to <b>re-smooth</b> your posterized image.' ) 
         self.smooth_btn.setMaximumWidth( 150 )
         
         # button for loading the saliency map
-        self.map_btn = QPushButton( 'Blur with your map?' )
+        self.map_btn = QPushButton( 'Smooth with custom map' )
         self.map_btn.clicked.connect( self.pop_up_load_saliency_map )
         self.map_btn.setToolTip( 'Press the button to <b>load</b> your own map to blur.' ) 
-        self.map_btn.setMaximumWidth( 150 )
+        self.map_btn.setMaximumWidth( 180 )
 
         # button for saving the posterized image
         self.save_btn = QPushButton( 'Save current image' )
@@ -122,25 +155,29 @@ class MainWindow( QWidget ):
         
         
         #### Previous-next buttons
-        self.previous_btn = QPushButton( '<<<-- See Previous' )
+        self.previous_btn = QPushButton( '<<<-- See History' )
         self.previous_btn.clicked.connect( self.paste_previous_image )
         self.previous_btn.setToolTip( 'Press the button to see your <b>previous</b> image in the gallory.' ) 
+        self.previous_btn.setMinimumWidth( 165 )
         self.previous_btn.setMaximumWidth( 165 )
         
         self.next_btn = QPushButton( 'See Next -->>>' )
         self.next_btn.clicked.connect( self.paste_next_image )
         self.next_btn.setToolTip( 'Press the button to see your <b>next</b> image in the gallory.' ) 
+        self.next_btn.setMinimumWidth( 165 )
         self.next_btn.setMaximumWidth( 165 )
         
         #### Show/Hide buttons
         self.palette_btn = QPushButton( 'Show/Hide palette' )
         self.palette_btn.clicked.connect( self.show_hide_palette )
         self.palette_btn.setToolTip( 'Press the button to <b>show</b> or <b>hide</b> the palette.' ) 
+        self.palette_btn.setMinimumWidth( 165 )
         self.palette_btn.setMaximumWidth( 165 )
         
         self.og_img_btn = QPushButton( 'Show/Hide input image' )
         self.og_img_btn.clicked.connect( self.show_hide_input_image )
         self.og_img_btn.setToolTip( 'Press the button to <b>show</b> your input image.' ) 
+        self.og_img_btn.setMinimumWidth( 165 )
         self.og_img_btn.setMaximumWidth( 165 )
         
         
@@ -152,6 +189,7 @@ class MainWindow( QWidget ):
         self.blend_sld.setSliderPosition( self.blend_slider_val )
         self.blend_sld.setPageStep( 1 )
         self.blend_sld.setToolTip( 'Fine-tune the slider to get your desired main palette size.' ) 
+        self.blend_sld.setMinimumWidth( 150 )
         self.blend_sld.setMaximumWidth( 200 )
         self.blend_sld.valueChanged.connect( self.blend_change_slider )
         
@@ -162,6 +200,7 @@ class MainWindow( QWidget ):
         self.palette_sld.setSliderPosition( self.palette_slider_val )
         self.palette_sld.setPageStep( 1 )
         self.palette_sld.setToolTip( 'Fine-tune the slider to get your desired main palette size.' ) 
+        self.palette_sld.setMinimumWidth( 150 )
         self.palette_sld.setMaximumWidth( 200 )
         self.palette_sld.valueChanged.connect( self.palette_change_slider )
         
@@ -172,16 +211,18 @@ class MainWindow( QWidget ):
         self.cluster_sld.setSliderPosition( self.cluster_slider_val )
         self.cluster_sld.setPageStep( 1 )
         self.cluster_sld.setToolTip( 'Fine-tune the slider to get your desired threshold for outlier colors.' ) 
+        self.cluster_sld.setMinimumWidth( 150 )
         self.cluster_sld.setMaximumWidth( 200 )
         self.cluster_sld.valueChanged.connect( self.cluster_change_slider )
         
         # slider for binary penalization
         self.binary_sld = QSlider( Qt.Horizontal )
-        self.binary_sld.setRange( 0, 200 )
+        self.binary_sld.setRange( 1, 200 )
         self.binary_sld.setFocusPolicy( Qt.NoFocus )
         self.binary_sld.setSliderPosition( int( 100 * self.binary_slider_val ) )
         self.binary_sld.setPageStep( 1 )
         self.binary_sld.setToolTip( 'Fine-tune the slider to get your desired penalization on binary term.' ) 
+        self.binary_sld.setMinimumWidth( 150 )
         self.binary_sld.setMaximumWidth( 200 )
         self.binary_sld.valueChanged.connect( self.binary_change_slider )
         
@@ -192,6 +233,7 @@ class MainWindow( QWidget ):
         self.blur_sld.setSliderPosition( int( 100 * self.blur_slider_val ) )
         self.blur_sld.setPageStep( 1 )
         self.blur_sld.setToolTip( 'Fine-tune the slider to get your desired blurring threshold.' ) 
+        self.blur_sld.setMinimumWidth( 150 )
         self.blur_sld.setMaximumWidth( 200 )
         self.blur_sld.valueChanged.connect( self.blur_change_slider )
         
@@ -202,105 +244,101 @@ class MainWindow( QWidget ):
         self.blur_window_sld.setSliderPosition( ( self.blur_window_slider_val - 3 ) / 2 )
         self.blur_window_sld.setPageStep( 1 )
         self.blur_window_sld.setToolTip( 'Fine-tune the slider to get your desired blurring window size.' ) 
+        self.blur_window_sld.setMinimumWidth( 150 )
         self.blur_window_sld.setMaximumWidth( 200 )
         self.blur_window_sld.valueChanged.connect( self.blur_window_change_slider )
         
         
         ### LABELS
         # labels
-        self.blur_window_text = QLabel( 'Blurring Window Size (Default: 7):' )
-        self.blur_text = QLabel( 'Blurring Threshold (Default: 0.1):' )
-        self.binary_text = QLabel( 'Richness value (Default: 1.0):' )
-        self.cluster_text = QLabel( 'Outlier value (Default: 20):' )
-        self.palette_text = QLabel( 'Main palette size (Default: 6):' )
-        self.blend_text = QLabel( 'Number of blending ways (Default: 3):' )
+        self.blur_window_text = QLabel( 'Boundary smoothess (Default: 7):' )
+        self.blur_text = QLabel( 'Detail threshold (Default: 0.1):' )
+        self.binary_text = QLabel( 'Region clumpiness (Default: 1.0):' )
+        self.cluster_text = QLabel( 'Outlier removable strength (Default: 20):' )
+        self.palette_text = QLabel( 'Palette size (Default: 6):' )
+        self.blend_text = QLabel( 'Palette blends (Default: 3):' )
         
-        self.blur_window_text.setMaximumWidth( 230 )
-        self.blur_text.setMaximumWidth( 230 )
-        self.binary_text.setMaximumWidth( 230 )
-        self.cluster_text.setMaximumWidth( 230 )
-        self.palette_text.setMaximumWidth( 230 )
-        self.blend_text.setMaximumWidth( 230 )
+        self.blur_window_text.setMaximumWidth( 250 )
+        self.blur_text.setMaximumWidth( 250 )
+        self.binary_text.setMaximumWidth( 250 )
+        self.cluster_text.setMaximumWidth( 250 )
+        self.palette_text.setMaximumWidth( 250 )
+        self.blend_text.setMaximumWidth( 250 )
         
         # label text for blur slider
         self.blur_window_sld_label = QLabel( '7' )
-        self.blur_window_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
+        self.blur_window_sld_label.setAlignment( Qt.AlignLeft )
         self.blur_window_sld_label.setMinimumWidth( 80 )
         
         self.blur_sld_label = QLabel( '0.1' )
-        self.blur_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
+        self.blur_sld_label.setAlignment( Qt.AlignLeft )
         self.blur_sld_label.setMinimumWidth( 80 )
         
         # label text for binary penalization slider
         self.binary_sld_label = QLabel( '1.0' )
-        self.binary_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
+        self.binary_sld_label.setAlignment( Qt.AlignLeft )
         self.binary_sld_label.setMinimumWidth( 80 )
         
         # label text for kmeans cluster slider
         self.cluster_sld_label = QLabel( '20' )
-        self.cluster_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
+        self.cluster_sld_label.setAlignment( Qt.AlignLeft )
         self.cluster_sld_label.setMinimumWidth( 80 )
         
         # label text for palette size slider
         self.palette_sld_label = QLabel( '6' )
-        self.palette_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
+        self.palette_sld_label.setAlignment( Qt.AlignLeft )
         self.palette_sld_label.setMinimumWidth( 80 )
         
         # label text for blending way slider
         self.blend_sld_label = QLabel( '3' )
-        self.blend_sld_label.setAlignment( Qt.AlignCenter | Qt.AlignVCenter )
+        self.blend_sld_label.setAlignment( Qt.AlignLeft )
         self.blend_sld_label.setMinimumWidth( 80 )
         
         
         ### BOX FRAMES
-        btns_box.addStretch(1)
+        btns_io_box.addStretch(20)
+        btns_io_box.addWidget( self.img_btn )
+        btns_io_box.addWidget( self.save_btn )
+        btns_io_box.addWidget( self.save_palette_btn )
+        btns_io_box.addStretch(20)
         
-        btns_box.addWidget( self.img_btn )
-        btns_box.addWidget( self.posterize_btn )
-        btns_box.addWidget( self.smooth_btn )
-        btns_box.addWidget( self.map_btn )
-        btns_box.addWidget( self.save_btn )
-        btns_box.addWidget( self.save_palette_btn )
         
-        btns_box.addStretch(20)
-        btns_box.addStretch(2)
-        btns_box.addWidget( self.palette_text )
-        btns_box.addWidget( self.palette_sld )
-        btns_box.addWidget( self.palette_sld_label )
-        btns_box.addStretch(2)
+        # Separate boxes for parameters
+        sld_box_palette.addStretch(20)
+        sld_box_palette.addWidget( self.palette_sld )
+        sld_box_palette.addWidget( self.palette_sld_label )
+        sld_box_palette.addStretch(20)
         
-        btns_box.addStretch(2)
-        btns_box.addWidget( self.blend_text )
-        btns_box.addWidget( self.blend_sld )
-        btns_box.addWidget( self.blend_sld_label )
-        btns_box.addStretch(2)
+        sld_box_blend.addStretch(2)
+        sld_box_blend.addWidget( self.blend_sld )
+        sld_box_blend.addWidget( self.blend_sld_label )
+        sld_box_blend.addStretch(2)
         
-        btns_box.addStretch(2)
-        btns_box.addWidget( self.cluster_text )
-        btns_box.addWidget( self.cluster_sld )
-        btns_box.addWidget( self.cluster_sld_label )
-        btns_box.addStretch(2)
+        sld_box_cluster.addStretch(2)
+        sld_box_cluster.addWidget( self.cluster_sld )
+        sld_box_cluster.addWidget( self.cluster_sld_label )
+        sld_box_cluster.addStretch(2)
         
-        btns_box.addStretch(2)
-        btns_box.addWidget( self.binary_text )
-        btns_box.addWidget( self.binary_sld )
-        btns_box.addWidget( self.binary_sld_label )
-        btns_box.addStretch(2)
+        sld_box_binary.addStretch(2)
+        sld_box_binary.addWidget( self.binary_sld )
+        sld_box_binary.addWidget( self.binary_sld_label )
+        sld_box_binary.addStretch(2)
         
-        btns_box.addStretch(2)
-        btns_box.addWidget( self.blur_text )
-        btns_box.addWidget( self.blur_sld )
-        btns_box.addWidget( self.blur_sld_label )
-        btns_box.addStretch(2)
+        sld_box_blur.addStretch(2)
+        sld_box_blur.addWidget( self.blur_sld )
+        sld_box_blur.addWidget( self.blur_sld_label )
+        sld_box_blur.addStretch(2)
         
-        btns_box.addStretch(2)
-        btns_box.addWidget( self.blur_window_text )
-        btns_box.addWidget( self.blur_window_sld )
-        btns_box.addWidget( self.blur_window_sld_label )
-        btns_box.addStretch(2)
-        btns_box.addStretch(20)
+        sld_box_window.addStretch(2)
+        sld_box_window.addWidget( self.blur_window_sld )
+        sld_box_window.addWidget( self.blur_window_sld_label )
+        sld_box_window.addStretch(2)
         
-        btns_box.addStretch(1)
+        # blur box for re-smooth and smooth by map
+        blur_box.addStretch(2)
+        blur_box.addWidget( self.smooth_btn )
+        blur_box.addWidget( self.map_btn )
+        blur_box.addStretch(2)
         
         # Image box
         img_box.addStretch(1)
@@ -319,10 +357,38 @@ class MainWindow( QWidget ):
         
         # Set grid layout
         grid = QGridLayout()
-        grid.addLayout( btns_box, 1, 0 )
-        grid.addLayout( pages_box, 0, 1 )
-        grid.addLayout( show_hide_box, 0, 2 )
-        grid.addLayout( img_box, 1, 1, 1, 2 )
+        
+        grid.addLayout( btns_io_box, 0, 0 )
+        
+        ### parameters for posterization
+        grid.addWidget( self.palette_text, 2, 0 )
+        grid.addLayout( sld_box_palette, 3, 0 )
+        
+        grid.addWidget( self.blend_text, 4, 0 )
+        grid.addLayout( sld_box_blend, 5, 0 )
+        
+        grid.addWidget( self.cluster_text, 6, 0 )
+        grid.addLayout( sld_box_cluster, 7, 0 )
+        
+        grid.addWidget( self.binary_text, 8, 0 )
+        grid.addLayout( sld_box_binary, 9, 0 )
+        
+        grid.addWidget( self.posterize_btn, 10, 0 )
+        
+        ### parameters for smoothing
+        grid.addWidget( self.blur_text, 12, 0 )
+        grid.addLayout( sld_box_blur, 13, 0 )
+        
+        grid.addWidget( self.blur_window_text, 14, 0 )
+        grid.addLayout( sld_box_window, 15, 0 )
+        
+        grid.addLayout( blur_box, 16, 0 )
+        
+        
+        
+        grid.addLayout( pages_box, 0, 10 )
+        grid.addLayout( show_hide_box, 0, 11 )
+        grid.addLayout( img_box, 1, 1, 20, 20 )
         self.setLayout(grid) 
         
         self.show()
@@ -457,6 +523,9 @@ class MainWindow( QWidget ):
             # algorithm starts
             start = time.time()
             
+            messagebox = TimerMessageBox( 1, self )
+            messagebox.open()
+                
             # K-means
             img_arr_re = img_arr.reshape( ( -1, 3 ) )
             img_arr_cluster = get_kmeans_cluster_image( self.cluster_slider_val, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
@@ -496,6 +565,10 @@ class MainWindow( QWidget ):
                 QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
             else:
                 print( "Start smoothing." )
+                
+                messagebox = TimerMessageBox( 1, self )
+                messagebox.open()
+                
                 self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
                 print( "Smoothing Finished." )
                 
@@ -575,7 +648,16 @@ class MainWindow( QWidget ):
                         return
                     
                     print( "Start smoothing." )
-                    self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val, blur_map = self.saliency_map[:, :, 0].tolist() )    # bugs about numba
+                    
+                    messagebox = TimerMessageBox( 1, self )
+                    messagebox.open()
+                    
+                    self.posterized_image_w_smooth = post_smoothing(
+                        PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ),
+                        self.blur_slider_val,
+                        blur_window = self.blur_window_slider_val,
+                        blur_map = self.saliency_map[:, :, 0]
+                        )    # bugs: 'tuple' object is not callable
                     print( "Smoothing Finished." )
                     
                     self.add_to_paletteList( self.paletteList[-1] )
