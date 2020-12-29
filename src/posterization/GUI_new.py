@@ -468,6 +468,9 @@ class MainWindow( QWidget ):
         height, width, dim = image.shape
         qim = QImage( image.data, width, height, 3 * width, QImage.Format_RGB888 )
         panel.setPixmap( QPixmap( qim ) )
+        ## Update didn't help. Repaint works.
+        # panel.update()
+        panel.repaint()
     
     def add_to_imageList( self, image ):
         self.imageList.append( np.asarray( image ) )
