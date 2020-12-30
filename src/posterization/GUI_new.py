@@ -7,7 +7,6 @@ from .simplepalettes import *
 
 import numpy as np
 import cv2
-import gco
 
 try:
     from PyQt5.QtCore import *
@@ -65,10 +64,10 @@ class MainWindow( QWidget ):
         #self.setStyleSheet("background-color: white;") 
         
         # Set the welcome icon in GIF
-        self.gif = QMovie( str( Path( __file__ ).parent / "simpson.gif" ) )
+        self.welcome_img_path = str( Path( __file__ ).parent / "car.jpg" )
+        self.welcome = QPixmap( self.welcome_img_path )
         self.imageLabel = QLabel()
-        self.imageLabel.setMovie( self.gif )
-        self.gif.start()
+        self.imageLabel.setPixmap( self.welcome )
         
         ### palette images
         self.paletteLabel = QLabel()
@@ -78,18 +77,22 @@ class MainWindow( QWidget ):
         self.imagePath = ""
         self.palette = None
         
-        self.show_palette = 0
+        self.waitingtime = 0
+        
+        self.show_palette = 1
         self.show_input = 0
         
         self.blur_window_slider_val = 7 # default
         self.blur_slider_val = 0.1      # default
-        self.binary_slider_val = 1.0    # default
+        self.binary_slider_val = 0.8    # default
         self.cluster_slider_val = 20    # default
         self.palette_slider_val = 6     # default
         self.blend_slider_val = 3       # default
         self.current_image_indx = -1    # Track the current image index in the image list
         
         self.imageList = []
+        self.add_to_imageList( cv2.cvtColor( cv2.imread( self.welcome_img_path ), cv2.COLOR_BGR2RGB ) )
+        
         self.paletteList = [-1 * np.ones( ( 1, 1, 1 ) )]
         
         self.input_image = None         # Store it as np array
@@ -252,9 +255,9 @@ class MainWindow( QWidget ):
         ### LABELS
         # labels
         self.blur_window_text = QLabel( 'Boundary smoothess (Default: 7):' )
-        self.blur_text = QLabel( 'Detail threshold (Default: 0.1):' )
-        self.binary_text = QLabel( 'Region clumpiness (Default: 1.0):' )
-        self.cluster_text = QLabel( 'Outlier removable strength (Default: 20):' )
+        self.blur_text = QLabel( 'Detail abstraction (Default: 0.1):' )
+        self.binary_text = QLabel( 'Region clumpiness (Default: 0.8):' )
+        self.cluster_text = QLabel( 'Rare color suppression (Default: 20):' )
         self.palette_text = QLabel( 'Palette size (Default: 6):' )
         self.blend_text = QLabel( 'Palette blends (Default: 3):' )
         
@@ -275,7 +278,7 @@ class MainWindow( QWidget ):
         self.blur_sld_label.setMinimumWidth( 80 )
         
         # label text for binary penalization slider
-        self.binary_sld_label = QLabel( '1.0' )
+        self.binary_sld_label = QLabel( '0.8' )
         self.binary_sld_label.setAlignment( Qt.AlignLeft )
         self.binary_sld_label.setMinimumWidth( 80 )
         
@@ -443,6 +446,7 @@ class MainWindow( QWidget ):
                 self.set_image( self.paletteLabel, self.paletteList[self.current_image_indx] )
             else:   # input image has no palette, so place a blank
                 self.paletteLabel.setPixmap( QPixmap() )
+                self.paletteLabel.repaint()
             self.set_image( self.imageLabel, self.imageList[self.current_image_indx] )
         
     def paste_next_image( self ):
@@ -460,6 +464,7 @@ class MainWindow( QWidget ):
                 self.set_image( self.paletteLabel, self.paletteList[self.current_image_indx] )
             else:   # input image has no palette, so place a blank
                 self.paletteLabel.setPixmap( QPixmap() )
+                self.paletteLabel.repaint()
             self.set_image( self.imageLabel, self.imageList[self.current_image_indx] )
     
     #Load new image function
@@ -468,9 +473,7 @@ class MainWindow( QWidget ):
         height, width, dim = image.shape
         qim = QImage( image.data, width, height, 3 * width, QImage.Format_RGB888 )
         panel.setPixmap( QPixmap( qim ) )
-        ## Update didn't help. Repaint works.
-        # panel.update()
-        panel.repaint()
+        #panel.repaint()
     
     def add_to_imageList( self, image ):
         self.imageList.append( np.asarray( image ) )
@@ -480,7 +483,11 @@ class MainWindow( QWidget ):
         
     def load_image( self, path ):
         print ( "Loading Image." )
+        
         self.imageList = []     # initialized back to empty when giving another input image
+        self.paletteList = [-1 * np.ones( ( 1, 1, 1 ) )]
+        self.paletteLabel.setPixmap( QPixmap() )
+        
         
         # push input image in the list
         self.current_image_indx += 1
@@ -491,11 +498,11 @@ class MainWindow( QWidget ):
         self.imagePath = path
     
     def show_hide_palette( self ):
-        if self.imagePath == "":
-            QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
+        #if self.imagePath == "":
+        #    QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
             
-        elif self.paletteList[-1][0, 0, 0] == -1:
-            QMessageBox.warning( self, 'Warning', 'You do not have palette. Please posterize your image first.' )
+        if self.paletteList[-1][0, 0, 0] == -1:
+            QMessageBox.warning( self, 'Warning', 'You do not have palette. Please posterize the image first.' )
         else:
             self.show_palette = 1 - self.show_palette
             if self.current_image_indx != 0 and self.show_palette == 1:
@@ -504,9 +511,9 @@ class MainWindow( QWidget ):
                 self.paletteLabel.setPixmap( QPixmap() )
         
     def show_hide_input_image( self ):
-        if self.imagePath == "":
-            QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
-        elif self.imagePath != "" and self.posterized_image_wo_smooth[0][0][0] == -1:
+        #if self.imagePath == "":
+        #    QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
+        if self.posterized_image_wo_smooth[0][0][0] == -1:
             QMessageBox.warning( self, 'Warning', 'This is your input image.' )
         else:
             self.show_input = 1 - self.show_input
@@ -517,159 +524,189 @@ class MainWindow( QWidget ):
     
     # posterization
     def posterize( self ):
+        #if self.imagePath == "":
+        #    QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
+        #else:
+        
         if self.imagePath == "":
-            QMessageBox.warning( self, 'Warning', 'Please select an image first.' )
+            img_arr = np.asfarray( PIL.Image.open( self.welcome_img_path ).convert( 'RGB' ) ) / 255.
         else:
-            print( "Start posterizing." )
             img_arr = np.asfarray( PIL.Image.open( self.imagePath ).convert( 'RGB' ) ) / 255.
+        
+        width, height, dim = img_arr.shape
+        length = max( width, height )
+        
+        self.message = "This image has size " + str( height ) + ' x ' + str( width ) + '.\n\n'
+        
+        if length >= 1800:
+            self.message += 'This is a large image and will roughly take more than 8 mins to process.\n' + 'We suggest to downsize, posterize it, and come back with the larger one until you satisfy the smaller posterization.\n\n'
+        else:
+            if 500 < length < 600:
+                self.waitingtime = 1
+            elif 600 < length < 1000:
+                self.waitingtime = 2
+            elif 1000 <= length:
+                self.waitingtime = 3
+            self.message += 'This will roughly take ' + str( self.waitingtime ) + ' to ' + str( self.waitingtime + 1 ) + ' min to process.\n\n'
+            
+            
+        reply = QMessageBox.question( self, 'Message', self.message + 'Do you want to proceed and posterize the image?',
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+        
+        if reply == QMessageBox.Yes:
+            print( "Start posterizing." )
             
             # algorithm starts
             start = time.time()
-            
+                
             messagebox = TimerMessageBox( 1, self )
             messagebox.open()
                 
             # K-means
             img_arr_re = img_arr.reshape( ( -1, 3 ) )
             img_arr_cluster = get_kmeans_cluster_image( self.cluster_slider_val, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
-            
+                
             # MLO
             post_img, final_colors, add_mix_layers, palette = \
             posterization( self.imagePath, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
-            
+                
             # save palette
             # 'ascontiguousarray' to make a C contiguous copy 
-            self.palette = np.ascontiguousarray( np.clip( 0, 255, palette2swatch( palette ) * 255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
-            
+            self.palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( palette ) * 255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
+                
             # convert to uint8 format
-            self.posterized_image_wo_smooth = np.clip( 0, 255, post_img*255. ).astype( np.uint8 )
-            
+            self.posterized_image_wo_smooth = np.clip( 0, 255, post_img * 255. ).astype( np.uint8 )
+                
             # post-smoothing
             self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
-            
+                
             end = time.time()
             print( "Finished. Total time: ", end - start )
-            
+                
             self.add_to_paletteList( self.palette )
             self.add_to_imageList( self.posterized_image_w_smooth )
-            
+                
             self.set_image( self.imageLabel, self.imageList[-1] )
-            
+            self.set_image( self.paletteLabel, self.paletteList[-1] )
+                
             # update current index position
             self.current_image_indx = len( self.imageList ) - 1
+            
+        else:
+            pass
     
     
     # re-smooth the image
     def smooth( self ):
-        if self.imagePath == "":
-            QMessageBox.warning( self,'Warning','Please select an image first!' )
+        #if self.imagePath == "":
+        #    QMessageBox.warning( self,'Warning','Please select an image first!' )
+        #else:
+        if self.posterized_image_wo_smooth[0][0][0] == -1:
+            QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
         else:
-            if self.posterized_image_wo_smooth[0][0][0] == -1:
-                QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
-            else:
-                print( "Start smoothing." )
+            print( "Start smoothing." )
                 
-                messagebox = TimerMessageBox( 1, self )
-                messagebox.open()
+            messagebox = TimerMessageBox( 1, self )
+            messagebox.open()
                 
-                self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
-                print( "Smoothing Finished." )
+            self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
+            print( "Smoothing Finished." )
                 
-                self.add_to_paletteList( self.paletteList[-1] )
-                self.add_to_imageList( self.posterized_image_w_smooth )
+            self.add_to_paletteList( self.paletteList[-1] )
+            self.add_to_imageList( self.posterized_image_w_smooth )
                 
-                self.set_image( self.imageLabel, self.imageList[-1] )
+            self.set_image( self.imageLabel, self.imageList[-1] )
                 
-                # update current index position
-                self.current_image_indx = len( self.imageList ) - 1
+            # update current index position
+            self.current_image_indx = len( self.imageList ) - 1
                 
                 
     # function to save current image
     def save_current_image( self ):
-        if self.imagePath == "":
-            QMessageBox.warning( self,'Warning','Please select an image first.' )
+        #if self.imagePath == "":
+        #    QMessageBox.warning( self,'Warning','Please select an image first.' )
+        #else:
+        if self.posterized_image_wo_smooth[0][0][0] == -1:
+            QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
         else:
-            if self.posterized_image_wo_smooth[0][0][0] == -1:
-                QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
-            else:
-                reply = QMessageBox.question( self, 'Message', "Are you sure to save your current image on this panel?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+            reply = QMessageBox.question( self, 'Message', "Are you sure to save your current image on this panel?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
                 
-                if reply == QMessageBox.Yes:
-                    image_name = QFileDialog.getSaveFileName( self, 'Save Image' )
-                    if not image_name:
-                        return
-                    Image.fromarray( self.imageList[self.current_image_indx] ).save( image_name[0] + '.png')
-                else:
-                    pass
+            if reply == QMessageBox.Yes:
+                image_name = QFileDialog.getSaveFileName( self, 'Save Image' )
+                if not image_name:
+                    return
+                Image.fromarray( self.imageList[self.current_image_indx] ).save( image_name[0] + '.png')
+            else:
+                pass
     
     # function to save current image
     def save_current_palette( self ):
-        if self.imagePath == "":
-            QMessageBox.warning( self,'Warning','Please select an image first.' )
+        #if self.imagePath == "":
+        #    QMessageBox.warning( self,'Warning','Please select an image first.' )
+        #else:
+        if self.posterized_image_wo_smooth[0][0][0] == -1:
+            QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
         else:
-            if self.posterized_image_wo_smooth[0][0][0] == -1:
-                QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
-            else:
-                reply = QMessageBox.question( self, 'Message', "Are you sure to save your current palette on this panel?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+            reply = QMessageBox.question( self, 'Message', "Are you sure to save your current palette on this panel?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
                 
-                if reply == QMessageBox.Yes:
-                    image_name = QFileDialog.getSaveFileName( self, 'Save Palette' )
-                    if not image_name:
-                        return
-                    Image.fromarray( self.paletteList[self.current_image_indx] ).save( image_name[0] + '.png')
-                else:
-                    pass
+            if reply == QMessageBox.Yes:
+                image_name = QFileDialog.getSaveFileName( self, 'Save Palette' )
+                if not image_name:
+                    return
+                Image.fromarray( self.paletteList[self.current_image_indx] ).save( image_name[0] + '.png')
+            else:
+                pass
     
     # load user's own blurring map
     def pop_up_load_saliency_map( self ):
-        if self.imagePath == "":
-            QMessageBox.warning( self,'Warning','Please select an image first.' )
+        #if self.imagePath == "":
+        #    QMessageBox.warning( self,'Warning','Please select an image first.' )
+        #else:
+        if self.posterized_image_wo_smooth[0][0][0] == -1:
+            QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
         else:
-            if self.posterized_image_wo_smooth[0][0][0] == -1:
-                QMessageBox.warning( self, 'Warning', 'Please posterize your image first.' )
-            else:
-                reply = QMessageBox.question( self, 'Message', "Do you have your own blurring map (in grayscale and in .jpg/.png extension)?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+            reply = QMessageBox.question( self, 'Message', "Do you have your own blurring map (in grayscale and in .jpg/.png extension)?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
                 
-                if reply == QMessageBox.Yes:
-                    map = QFileDialog.getOpenFileName( self, 'Select file' )
-                    map_path = map[0]
-                    
-                    if map_path[-4:] not in ['.jpg', '.png']:
-                        QMessageBox.warning( self, 'Warning', 'Please upload your map with .jpg or .png extension.' )
-                        return
+            if reply == QMessageBox.Yes:
+                map = QFileDialog.getOpenFileName( self, 'Select file' )
+                map_path = map[0]
+                
+                if map_path[-4:] not in ['.jpg', '.png']:
+                    QMessageBox.warning( self, 'Warning', 'Please upload your map with .jpg or .png extension.' )
+                    return
                         
-                    self.saliency_map = cv2.imread( map[0] ) / 255
-                    h_s, w_s, dim_s = self.saliency_map.shape
-                    h_i, w_i, dim_i = self.input_image.shape
+                self.saliency_map = cv2.imread( map[0] ) / 255
+                h_s, w_s, dim_s = self.saliency_map.shape
+                h_i, w_i, dim_i = self.input_image.shape
                     
-                    if ( h_i, w_i ) != ( h_s, w_s ):
-                        QMessageBox.warning( self, 'Warning', 'Please upload your map with size:\n\n ' + '    ' + str( h_i ) + ' x  ' + str( w_i ) + '\n\n' + 'You upload the map with size:\n\n ' + '    ' + str( h_s ) + ' x  ' + str( w_s ) )
-                        return
+                if ( h_i, w_i ) != ( h_s, w_s ):
+                    QMessageBox.warning( self, 'Warning', 'Please upload your map with size:\n\n ' + '    ' + str( h_i ) + ' x  ' + str( w_i ) + '\n\n' + 'You upload the map with size:\n\n ' + '    ' + str( h_s ) + ' x  ' + str( w_s ) )
+                    return
                     
-                    if not np.array_equal( self.saliency_map[:,:,0], self.saliency_map[:,:,1] ) or not np.array_equal( self.saliency_map[:,:,1], self.saliency_map[:,:,2] ):
-                        QMessageBox.warning( self, 'Warning', 'Please upload your map with grayscale.' )
-                        return
+                if not np.array_equal( self.saliency_map[:,:,0], self.saliency_map[:,:,1] ) or not np.array_equal( self.saliency_map[:,:,1], self.saliency_map[:,:,2] ):
+                    QMessageBox.warning( self, 'Warning', 'Please upload your map with grayscale.' )
+                    return
                     
-                    print( "Start smoothing." )
+                print( "Start smoothing." )
                     
-                    messagebox = TimerMessageBox( 1, self )
-                    messagebox.open()
+                messagebox = TimerMessageBox( 1, self )
+                messagebox.open()
                     
-                    self.posterized_image_w_smooth = post_smoothing(
-                        PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ),
-                        self.blur_slider_val,
-                        blur_window = self.blur_window_slider_val,
-                        blur_map = self.saliency_map[:, :, 0]
-                        )    # bugs: 'tuple' object is not callable
-                    print( "Smoothing Finished." )
+                self.posterized_image_w_smooth = post_smoothing( 
+                    PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), 
+                    self.blur_slider_val, 
+                    blur_window = self.blur_window_slider_val, 
+                    blur_map = self.saliency_map[:, :, 0] 
+                )  
+                print( "Smoothing Finished." )
                     
-                    self.add_to_paletteList( self.paletteList[-1] )
-                    self.add_to_imageList( self.posterized_image_w_smooth )
+                self.add_to_paletteList( self.paletteList[-1] )
+                self.add_to_imageList( self.posterized_image_w_smooth )
                     
-                    self.set_image( self.imageLabel, self.imageList[-1] )
+                self.set_image( self.imageLabel, self.imageList[-1] )
                     
-                    # update current index position
-                    self.current_image_indx = len( self.imageList ) - 1
+                # update current index position
+                self.current_image_indx = len( self.imageList ) - 1
                     
     
     # Function if users tend to close the app
