@@ -28,10 +28,8 @@ Then:
 
 Launch the GUI:
 
-    cd src
-    python -m posterization
+    python src/gui.py
 
-Command line example (probably won't work because of relative imports):
+Command line example:
 
-    cd src
-    python posterization/posterization.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
+    python src/cli.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
