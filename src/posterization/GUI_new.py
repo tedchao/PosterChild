@@ -70,8 +70,8 @@ class MainWindow( QWidget ):
         #self.setStyleSheet("background-color: white;") 
         
         # Set the welcome icon in GIF
-        self.welcome_img_path = "car.jpg"
-        self.welcome = QPixmap( str( Path( __file__ ).parent / self.welcome_img_path ) )
+        self.welcome_img_path = str( Path( __file__ ).parent / "car.jpg" )
+        self.welcome = QPixmap( self.welcome_img_path )
         self.imageLabel = QLabel()
         self.imageLabel.setPixmap( self.welcome )
         
