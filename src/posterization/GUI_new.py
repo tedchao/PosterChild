@@ -5,6 +5,9 @@ from pathlib import Path
 from .posterization_gui import *
 from .simplepalettes import *
 
+#from posterization_gui import *
+#import simplepalettes
+
 import numpy as np
 import cv2
 
@@ -64,8 +67,8 @@ class MainWindow( QWidget ):
         #self.setStyleSheet("background-color: white;") 
         
         # Set the welcome icon in GIF
-        self.welcome_img_path = str( Path( __file__ ).parent / "car.jpg" )
-        self.welcome = QPixmap( self.welcome_img_path )
+        self.welcome_img_path = "car.jpg"
+        self.welcome = QPixmap( str( Path( __file__ ).parent / self.welcome_img_path ) )
         self.imageLabel = QLabel()
         self.imageLabel.setPixmap( self.welcome )
         
@@ -112,11 +115,17 @@ class MainWindow( QWidget ):
         sld_box_blur = QHBoxLayout()
         sld_box_window = QHBoxLayout()
         
+        sld_r_recolor = QHBoxLayout()
+        sld_g_recolor = QHBoxLayout()
+        sld_b_recolor = QHBoxLayout()
+        
         blur_box = QHBoxLayout()
         
         img_box = QHBoxLayout() # set image's box
         pages_box = QVBoxLayout() # set next-previous box
         show_hide_box = QVBoxLayout()
+        
+        combo_recolor_box = QHBoxLayout()
         
         
         #### BUTTONS
@@ -298,6 +307,70 @@ class MainWindow( QWidget ):
         self.blend_sld_label.setMinimumWidth( 80 )
         
         
+        ### combo boxes for recoloring
+        self.combobox = QComboBox(self)
+        self.combobox.setMaximumWidth(100)
+        
+        self.combotext = QLabel( 'Choose color:' )
+        
+        self.r_slider_val = 0
+        self.g_slider_val = 0
+        self.b_slider_val = 0
+        
+        self.rgb_text = QLabel( '\u2022 Recolor via palette:' )
+        
+        self.rgb_text.setMaximumWidth( 250 )
+        
+        self.r_sld_label = QLabel( '0' )
+        self.r_sld_label.setAlignment( Qt.AlignLeft )
+        self.r_sld_label.setMinimumWidth( 80 )
+        self.r_sld_text_label = QLabel( 'R:' )
+        self.r_sld_text_label.setAlignment( Qt.AlignLeft )
+        
+        self.g_sld_label = QLabel( '0' )
+        self.g_sld_label.setAlignment( Qt.AlignLeft )
+        self.g_sld_label.setMinimumWidth( 80 )
+        self.g_sld_text_label = QLabel( 'G:' )
+        self.g_sld_text_label.setAlignment( Qt.AlignRight )
+        
+        self.b_sld_label = QLabel( '0' )
+        self.b_sld_label.setAlignment( Qt.AlignLeft )
+        self.b_sld_label.setMinimumWidth( 80 )
+        self.b_sld_text_label = QLabel( 'B:' )
+        self.b_sld_text_label.setAlignment( Qt.AlignRight )
+        
+        # slider for palette recoloring
+        self.r_sld = QSlider( Qt.Horizontal )
+        self.r_sld.setRange( 0, 225 )
+        self.r_sld.setFocusPolicy( Qt.NoFocus )
+        self.r_sld.setSliderPosition( self.r_slider_val )
+        self.r_sld.setPageStep( 1 )
+        self.r_sld.setToolTip( 'Fine-tune the slider to get your desired recoloring for R-channel.' ) 
+        self.r_sld.setMinimumWidth( 150 )
+        self.r_sld.setMaximumWidth( 200 )
+        self.r_sld.valueChanged.connect( self.r_change_slider )
+        
+        self.g_sld = QSlider( Qt.Horizontal )
+        self.g_sld.setRange( 0, 225 )
+        self.g_sld.setFocusPolicy( Qt.NoFocus )
+        self.g_sld.setSliderPosition( self.g_slider_val )
+        self.g_sld.setPageStep( 1 )
+        self.g_sld.setToolTip( 'Fine-tune the slider to get your desired recoloring for G-channel.' ) 
+        self.g_sld.setMinimumWidth( 150 )
+        self.g_sld.setMaximumWidth( 200 )
+        self.g_sld.valueChanged.connect( self.g_change_slider )
+        
+        self.b_sld = QSlider( Qt.Horizontal )
+        self.b_sld.setRange( 0, 225 )
+        self.b_sld.setFocusPolicy( Qt.NoFocus )
+        self.b_sld.setSliderPosition( self.b_slider_val )
+        self.b_sld.setPageStep( 1 )
+        self.b_sld.setToolTip( 'Fine-tune the slider to get your desired recoloring for B-channel.' ) 
+        self.b_sld.setMinimumWidth( 150 )
+        self.b_sld.setMaximumWidth( 200 )
+        self.b_sld.valueChanged.connect( self.b_change_slider )
+        
+        
         ### BOX FRAMES
         btns_io_box.addStretch(20)
         btns_io_box.addWidget( self.img_btn )
@@ -307,41 +380,54 @@ class MainWindow( QWidget ):
         
         
         # Separate boxes for parameters
-        sld_box_palette.addStretch(20)
         sld_box_palette.addWidget( self.palette_sld )
         sld_box_palette.addWidget( self.palette_sld_label )
-        sld_box_palette.addStretch(20)
+        sld_box_palette.addStretch(8)
         
-        sld_box_blend.addStretch(2)
         sld_box_blend.addWidget( self.blend_sld )
         sld_box_blend.addWidget( self.blend_sld_label )
-        sld_box_blend.addStretch(2)
+        sld_box_blend.addStretch(8)
         
-        sld_box_cluster.addStretch(2)
         sld_box_cluster.addWidget( self.cluster_sld )
         sld_box_cluster.addWidget( self.cluster_sld_label )
-        sld_box_cluster.addStretch(2)
+        sld_box_cluster.addStretch(8)
         
-        sld_box_binary.addStretch(2)
         sld_box_binary.addWidget( self.binary_sld )
         sld_box_binary.addWidget( self.binary_sld_label )
-        sld_box_binary.addStretch(2)
+        sld_box_binary.addStretch(8)
         
-        sld_box_blur.addStretch(2)
         sld_box_blur.addWidget( self.blur_sld )
         sld_box_blur.addWidget( self.blur_sld_label )
-        sld_box_blur.addStretch(2)
+        sld_box_blur.addStretch(8)
         
-        sld_box_window.addStretch(2)
         sld_box_window.addWidget( self.blur_window_sld )
         sld_box_window.addWidget( self.blur_window_sld_label )
-        sld_box_window.addStretch(2)
+        sld_box_window.addStretch(8)
         
         # blur box for re-smooth and smooth by map
-        blur_box.addStretch(2)
         blur_box.addWidget( self.smooth_btn )
         blur_box.addWidget( self.map_btn )
-        blur_box.addStretch(2)
+        blur_box.addStretch(8)
+        
+        # recoloring box
+        combo_recolor_box.addWidget( self.combotext )
+        combo_recolor_box.addWidget( self.combobox )
+        combo_recolor_box.addStretch(8)
+        
+        sld_r_recolor.addWidget( self.r_sld_text_label )
+        sld_r_recolor.addWidget( self.r_sld )
+        sld_r_recolor.addWidget( self.r_sld_label )
+        sld_r_recolor.addStretch(8)
+        
+        sld_g_recolor.addWidget( self.g_sld_text_label )
+        sld_g_recolor.addWidget( self.g_sld )
+        sld_g_recolor.addWidget( self.g_sld_label )
+        sld_g_recolor.addStretch(8)
+        
+        sld_b_recolor.addWidget( self.b_sld_text_label )
+        sld_b_recolor.addWidget( self.b_sld )
+        sld_b_recolor.addWidget( self.b_sld_label )
+        sld_b_recolor.addStretch(8)
         
         # Image box
         img_box.addStretch(1)
@@ -360,6 +446,7 @@ class MainWindow( QWidget ):
         
         # Set grid layout
         grid = QGridLayout()
+        grid.setSpacing(15)
         
         grid.addLayout( btns_io_box, 0, 0 )
         
@@ -386,17 +473,41 @@ class MainWindow( QWidget ):
         grid.addLayout( sld_box_window, 15, 0 )
         
         grid.addLayout( blur_box, 16, 0 )
-        
-        
-        
+    
         grid.addLayout( pages_box, 0, 10 )
         grid.addLayout( show_hide_box, 0, 11 )
-        grid.addLayout( img_box, 1, 1, 20, 20 )
+        
+        ### sliders for recoloring
+        grid.addWidget( self.rgb_text, 18, 0 )
+        grid.addLayout( combo_recolor_box, 19, 0 )
+        grid.addLayout( sld_r_recolor, 20, 0 )
+        grid.addLayout( sld_g_recolor, 21, 0 )
+        grid.addLayout( sld_b_recolor, 22, 0 )
+        
+        
+        grid.addLayout( img_box, 1, 1, 23, 23 )
         self.setLayout(grid) 
         
         self.show()
     
+    # text options for combo box
+    def onActivated(self, text):
+        self.combotext.setText( text )
+        self.combotext.adjustSize()
+    
     # Slider functions
+    def r_change_slider(self, value):
+        self.r_slider_val = value
+        self.r_sld_label.setText( str( value ) )
+    
+    def g_change_slider(self, value):
+        self.g_slider_val = value
+        self.g_sld_label.setText( str( value ) )
+    
+    def b_change_slider(self, value):
+        self.b_slider_val = value
+        self.b_sld_label.setText( str( value ) )
+    
     def blur_window_change_slider(self, value):
         self.blur_window_slider_val = 2 * value + 3
         self.blur_window_sld_label.setText( str( 2 * value + 3 ) )
