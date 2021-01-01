@@ -544,8 +544,15 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
         
         return color
     
-    @jit(nopython=True)
     def medianBlur_truncate( img, dft_img, window_size ):
+        filtered_img = cv2.medianBlur( img, window_size )
+        if blur_map is None:
+            filtered_img[ dft_img >= threshold ] = img[ dft_img >= threshold ]
+        else:
+            filtered_img[ dft_img >= blur_map ] = img[ dft_img >= blur_map ]
+        return filtered_img
+        
+        '''
         margin = int( ( window_size - 1 ) / 2 )
         
         filtered_img = np.copy( img )
@@ -566,6 +573,7 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
                         filtered_img[i, j] = median_color
                     
         return filtered_img
+        '''
     
     cv2_img_mlo = np.array( img_mlo )
     

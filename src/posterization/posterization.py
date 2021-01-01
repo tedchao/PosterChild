@@ -13,8 +13,9 @@ import cairo
 import random
 import time
 
-import simplepalettes
+from . import simplepalettes
 from .simplify_convexhull import *
+from .posterization_gui import post_smoothing
 
 def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_blend ):
     '''
@@ -479,7 +480,14 @@ def main():
     post_img, final_colors, add_mix_layers, palette = \
     posterization( args.input_image, img_arr_og, img_arr_cluster, palette_num, num_blend )
     
-    Image.fromarray( np.clip( 0, 255, post_img*255. ).astype( np.uint8 ), 'RGB' ).save( args.output_posterized_path + '.jpg' )
+    # convert to uint8 format
+    posterized_image_wo_smooth = np.clip( 0, 255, post_img*255. ).astype( np.uint8 )
+    
+    # post-smoothing
+    posterized_image_w_smooth = post_smoothing( Image.fromarray( posterized_image_wo_smooth, 'RGB' ), 0.1, blur_window = 7 )
+    
+    # save the result
+    Image.fromarray( posterized_image_w_smooth, 'RGB' ).save( args.output_posterized_path + '.png' )
     
     # save palette and final used colors
     timg = np.clip( 0, 255, simplepalettes.palette2swatch( palette ) * 255. ).astype( np.uint8 )
