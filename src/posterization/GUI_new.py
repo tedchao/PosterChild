@@ -93,6 +93,8 @@ class MainWindow( QWidget ):
         self.show_palette = 1
         self.show_input = 0
         
+        self.live_smoothing = True
+        
         self.blur_window_slider_val = 7 # default
         self.blur_slider_val = 0.1      # default
         self.binary_slider_val = 0.8    # default
@@ -151,7 +153,7 @@ class MainWindow( QWidget ):
         self.posterize_btn.setMaximumWidth( 150 )
         
         # button for re-smoothing the posterized image
-        self.smooth_btn = QPushButton( 'Re-smooth' )
+        self.smooth_btn = QPushButton( 'Re-smooth!' )
         self.smooth_btn.clicked.connect( self.smooth )
         self.smooth_btn.setToolTip( 'Press the button to <b>re-smooth</b> your posterized image.' ) 
         self.smooth_btn.setMaximumWidth( 150 )
@@ -380,7 +382,7 @@ class MainWindow( QWidget ):
         self.b_sld.setMaximumWidth( 200 )
         self.b_sld.valueChanged.connect( self.b_change_slider )
         
-        self.recolor_btn = QPushButton( 'Recolor!' )
+        self.recolor_btn = QPushButton( 'Re-color!' )
         self.recolor_btn.clicked.connect( self.recolor_via_palette )
         self.recolor_btn.setToolTip( 'Press the button to <b>recolor</b> the image via palette color.' ) 
         self.recolor_btn.setMinimumWidth( 90 )
@@ -593,22 +595,27 @@ class MainWindow( QWidget ):
     def r_change_slider(self, value):
         self.r_slider_val = value
         self.r_sld_label.setText( str( value ) )
+        if self.live_smoothing: self.recolor_via_palette()
     
     def g_change_slider(self, value):
         self.g_slider_val = value
         self.g_sld_label.setText( str( value ) )
+        if self.live_smoothing: self.recolor_via_palette()
     
     def b_change_slider(self, value):
         self.b_slider_val = value
         self.b_sld_label.setText( str( value ) )
+        if self.live_smoothing: self.recolor_via_palette()
     
     def blur_window_change_slider(self, value):
         self.blur_window_slider_val = 2 * value + 3
         self.blur_window_sld_label.setText( str( 2 * value + 3 ) )
+        if self.live_smoothing: self.smooth()
         
     def blur_change_slider(self, value):
         self.blur_slider_val = value / 100
         self.blur_sld_label.setText( str( value / 100 ) )
+        if self.live_smoothing: self.smooth()
     
     def binary_change_slider(self, value):
         self.binary_slider_val = value / 100
@@ -745,15 +752,15 @@ class MainWindow( QWidget ):
         self.message = "This image has size " + str( height ) + ' x ' + str( width ) + '.\n\n'
         
         if length >= 1800:
-            self.message += 'This is a large image and will roughly take more than 8 mins to process.\n' + 'We suggest to downsize, posterize it, and come back with the larger one until you satisfy with the smaller posterization.\n\n'
+            self.message += 'This is a large image and may take more than 8 mins to process.\n' + 'We suggest you posterize a downsized version to select appropriate parameters or vectorize the output.\n\n'
         else:
             if 500 < length < 600:
-                self.waitingtime = 1
-            elif 600 < length < 1000:
                 self.waitingtime = 2
-            elif 1000 <= length:
+            elif 600 < length < 1000:
                 self.waitingtime = 3
-            self.message += 'This will roughly take ' + str( self.waitingtime ) + ' to ' + str( self.waitingtime + 1 ) + ' min to process.\n\n'
+            elif 1000 <= length:
+                self.waitingtime = 4
+            self.message += 'This will take roughly ' + str( self.waitingtime ) + ' minutes to process.\n\n'
             
             
         reply = QMessageBox.question( self, 'Message', self.message + 'Do you want to proceed and posterize the image?',
