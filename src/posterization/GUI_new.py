@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
 import sys
+
+
 from pathlib import Path
 from .posterization_gui import *
 from .simplepalettes import *
+'''
 
-#from posterization_gui import *
-#import simplepalettes
-
+from posterization_gui import *
+import simplepalettes
+'''
 import numpy as np
 import cv2
 
@@ -80,6 +83,11 @@ class MainWindow( QWidget ):
         self.imagePath = ""
         self.palette = None
         
+        # used for recoloring
+        self.weights_per_pixel = None
+        self.palette_recolor = None
+        self.palette_og = None
+        
         self.waitingtime = 0
         
         self.show_palette = 1
@@ -126,6 +134,7 @@ class MainWindow( QWidget ):
         show_hide_box = QVBoxLayout()
         
         combo_recolor_box = QHBoxLayout()
+        recolor_btn_box = QHBoxLayout()
         
         
         #### BUTTONS
@@ -307,17 +316,18 @@ class MainWindow( QWidget ):
         self.blend_sld_label.setMinimumWidth( 80 )
         
         
+        ####
         ### combo boxes for recoloring
+        ####
         self.combobox = QComboBox(self)
         self.combobox.setMaximumWidth(100)
-        
-        self.combotext = QLabel( 'Choose color:' )
+        self.combotext = QLabel( 'Choose color: ' )
         
         self.r_slider_val = 0
         self.g_slider_val = 0
         self.b_slider_val = 0
         
-        self.rgb_text = QLabel( '\u2022 Recolor via palette:' )
+        self.rgb_text = QLabel( '\u2022 Recolor the image via palette:' )
         
         self.rgb_text.setMaximumWidth( 250 )
         
@@ -341,7 +351,7 @@ class MainWindow( QWidget ):
         
         # slider for palette recoloring
         self.r_sld = QSlider( Qt.Horizontal )
-        self.r_sld.setRange( 0, 225 )
+        self.r_sld.setRange( 0, 255 )
         self.r_sld.setFocusPolicy( Qt.NoFocus )
         self.r_sld.setSliderPosition( self.r_slider_val )
         self.r_sld.setPageStep( 1 )
@@ -351,7 +361,7 @@ class MainWindow( QWidget ):
         self.r_sld.valueChanged.connect( self.r_change_slider )
         
         self.g_sld = QSlider( Qt.Horizontal )
-        self.g_sld.setRange( 0, 225 )
+        self.g_sld.setRange( 0, 255 )
         self.g_sld.setFocusPolicy( Qt.NoFocus )
         self.g_sld.setSliderPosition( self.g_slider_val )
         self.g_sld.setPageStep( 1 )
@@ -361,7 +371,7 @@ class MainWindow( QWidget ):
         self.g_sld.valueChanged.connect( self.g_change_slider )
         
         self.b_sld = QSlider( Qt.Horizontal )
-        self.b_sld.setRange( 0, 225 )
+        self.b_sld.setRange( 0, 255 )
         self.b_sld.setFocusPolicy( Qt.NoFocus )
         self.b_sld.setSliderPosition( self.b_slider_val )
         self.b_sld.setPageStep( 1 )
@@ -369,6 +379,18 @@ class MainWindow( QWidget ):
         self.b_sld.setMinimumWidth( 150 )
         self.b_sld.setMaximumWidth( 200 )
         self.b_sld.valueChanged.connect( self.b_change_slider )
+        
+        self.recolor_btn = QPushButton( 'Recolor!' )
+        self.recolor_btn.clicked.connect( self.recolor_via_palette )
+        self.recolor_btn.setToolTip( 'Press the button to <b>recolor</b> the image via palette color.' ) 
+        self.recolor_btn.setMinimumWidth( 90 )
+        self.recolor_btn.setMaximumWidth( 90 )
+        
+        self.undo_recolor_btn = QPushButton( 'Undo all recolorings' )
+        self.undo_recolor_btn.clicked.connect( self.undo_recoloring )
+        self.undo_recolor_btn.setToolTip( 'Press the button to <b>undo</b> your previous recoloring.' ) 
+        self.undo_recolor_btn.setMinimumWidth( 170 )
+        self.undo_recolor_btn.setMaximumWidth( 170 )
         
         
         ### BOX FRAMES
@@ -429,6 +451,10 @@ class MainWindow( QWidget ):
         sld_b_recolor.addWidget( self.b_sld_label )
         sld_b_recolor.addStretch(8)
         
+        recolor_btn_box.addWidget( self.recolor_btn )
+        recolor_btn_box.addWidget( self.undo_recolor_btn )
+        recolor_btn_box.addStretch(8)
+        
         # Image box
         img_box.addStretch(1)
         img_box.addWidget( self.paletteLabel )
@@ -483,19 +509,87 @@ class MainWindow( QWidget ):
         grid.addLayout( sld_r_recolor, 20, 0 )
         grid.addLayout( sld_g_recolor, 21, 0 )
         grid.addLayout( sld_b_recolor, 22, 0 )
+        grid.addLayout( recolor_btn_box, 23, 0 )
         
         
-        grid.addLayout( img_box, 1, 1, 23, 23 )
+        grid.addLayout( img_box, 1, 1, 24, 24 )
         self.setLayout(grid) 
         
         self.show()
     
-    # text options for combo box
-    def onActivated(self, text):
-        self.combotext.setText( text )
-        self.combotext.adjustSize()
+    ### Recoloring functions
+    def set_rgb_slider( self, color ):
+        color = color * 255.
+        self.r_change_slider( int( color[0] ) )
+        self.g_change_slider( int( color[1] ) )
+        self.b_change_slider( int( color[2] ) )
+        
+        self.r_sld.setSliderPosition( int( color[0] ) )
+        self.g_sld.setSliderPosition( int( color[1] ) )
+        self.b_sld.setSliderPosition( int( color[2] ) )
+        
+    def onActivated( self, text ):
+        color_indx = int( text ) - 1
+        color = self.palette_recolor[ color_indx ]
+        self.set_rgb_slider( color )
     
-    # Slider functions
+    def set_combo_icon( self ):
+        for i in range( len( self.palette_recolor ) ):
+            self.combobox.addItem( str( i + 1 ) )
+            
+        self.combobox.activated[str].connect( self.onActivated )
+        default_color = self.palette_recolor[0]
+        self.set_rgb_slider( default_color )
+    
+    def recolor_via_palette( self ):
+        if self.posterized_image_wo_smooth[0][0][0] == -1:
+            QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
+        else:
+            color_indx = int( self.combobox.currentText() ) - 1
+            r_value = self.r_sld.value()
+            g_value = self.g_sld.value()
+            b_value = self.b_sld.value()
+            
+            self.palette_recolor[ color_indx ] = np.array([ r_value, g_value, b_value ]) / 255.
+
+            recolor_img = ( self.weights_per_pixel @ self.palette_recolor ).reshape( self.input_image.shape )
+            recolor_smooth_img = post_smoothing( PIL.Image.fromarray( np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 ), 'RGB' ),
+                self.blur_slider_val, blur_window = self.blur_window_slider_val )
+            
+            new_palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( self.palette_recolor ) * 
+                255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
+            
+            self.add_to_paletteList( new_palette )
+            self.add_to_imageList( recolor_smooth_img )
+            
+            self.set_image( self.imageLabel, self.imageList[-1] )
+            self.set_image( self.paletteLabel, self.paletteList[-1] )
+            
+            # update current index position
+            self.current_image_indx = len( self.imageList ) - 1
+    
+    def undo_recoloring( self ):
+        if self.posterized_image_wo_smooth[0][0][0] == -1:
+            QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
+        else:
+            # visualization for current combox text
+            color_indx = int( self.combobox.currentText() ) - 1
+            current_color = self.palette_og[ color_indx ]
+            self.set_rgb_slider( current_color )
+            
+            self.palette_recolor = self.palette_og.copy()
+            
+            self.add_to_paletteList( self.palette )
+            self.add_to_imageList( self.posterized_image_w_smooth )
+            
+            self.set_image( self.imageLabel, self.imageList[-1] )
+            self.set_image( self.paletteLabel, self.paletteList[-1] )
+            
+            # update current index position
+            self.current_image_indx = len( self.imageList ) - 1
+    
+    
+    ### Slider functions
     def r_change_slider(self, value):
         self.r_slider_val = value
         self.r_sld_label.setText( str( value ) )
@@ -641,6 +735,7 @@ class MainWindow( QWidget ):
         
         if self.imagePath == "":
             img_arr = np.asfarray( PIL.Image.open( self.welcome_img_path ).convert( 'RGB' ) ) / 255.
+            self.input_image = img_arr
         else:
             img_arr = np.asfarray( PIL.Image.open( self.imagePath ).convert( 'RGB' ) ) / 255.
         
@@ -650,7 +745,7 @@ class MainWindow( QWidget ):
         self.message = "This image has size " + str( height ) + ' x ' + str( width ) + '.\n\n'
         
         if length >= 1800:
-            self.message += 'This is a large image and will roughly take more than 8 mins to process.\n' + 'We suggest to downsize, posterize it, and come back with the larger one until you satisfy the smaller posterization.\n\n'
+            self.message += 'This is a large image and will roughly take more than 8 mins to process.\n' + 'We suggest to downsize, posterize it, and come back with the larger one until you satisfy with the smaller posterization.\n\n'
         else:
             if 500 < length < 600:
                 self.waitingtime = 1
@@ -676,11 +771,17 @@ class MainWindow( QWidget ):
             # K-means
             img_arr_re = img_arr.reshape( ( -1, 3 ) )
             img_arr_cluster = get_kmeans_cluster_image( self.cluster_slider_val, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
-                
+            
             # MLO
             post_img, final_colors, add_mix_layers, palette = \
             posterization( self.imagePath, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
-                
+            
+            ### setting for recoloring
+            self.weights_per_pixel = add_mix_layers # save weight list per pixel
+            self.palette_recolor = palette  # save for palette recoloring
+            self.palette_og = self.palette_recolor.copy()
+            self.set_combo_icon()
+            
             # save palette
             # 'ascontiguousarray' to make a C contiguous copy 
             self.palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( palette ) * 255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
