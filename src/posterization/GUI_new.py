@@ -7,10 +7,10 @@ from pathlib import Path
 from .posterization_gui import *
 from .simplepalettes import *
 '''
-
 from posterization_gui import *
 import simplepalettes
 '''
+
 import numpy as np
 import cv2
 
@@ -70,7 +70,8 @@ class MainWindow( QWidget ):
         #self.setStyleSheet("background-color: white;") 
         
         # Set the welcome icon in GIF
-        self.welcome_img_path = str( Path( __file__ ).parent / "car.jpg" )
+        self.welcome_img_path =  str( Path( __file__ ).parent/"car.jpg" )
+        #self.welcome_img_path = "car.jpg"
         self.welcome = QPixmap( self.welcome_img_path )
         self.imageLabel = QLabel()
         self.imageLabel.setPixmap( self.welcome )
@@ -88,7 +89,7 @@ class MainWindow( QWidget ):
         self.palette_recolor = None
         self.palette_og = None
         
-        self.waitingtime = 0
+        self.waitingtime = 1
         
         self.show_palette = 1
         self.show_input = 0
@@ -153,7 +154,7 @@ class MainWindow( QWidget ):
         self.posterize_btn.setMaximumWidth( 150 )
         
         # button for re-smoothing the posterized image
-        self.smooth_btn = QPushButton( 'Re-smooth!' )
+        self.smooth_btn = QPushButton( 'Re-smooth' )
         self.smooth_btn.clicked.connect( self.smooth )
         self.smooth_btn.setToolTip( 'Press the button to <b>re-smooth</b> your posterized image.' ) 
         self.smooth_btn.setMaximumWidth( 150 )
@@ -275,11 +276,11 @@ class MainWindow( QWidget ):
         ### LABELS
         # labels
         self.blur_window_text = QLabel( 'Boundary smoothess (Default: 7):' )
-        self.blur_text = QLabel( 'Detail abstraction (Default: 0.1):' )
-        self.binary_text = QLabel( 'Region clumpiness (Default: 0.8):' )
+        self.blur_text = QLabel( 'Detail abstraction (Default: 0.1):  ' )
+        self.binary_text = QLabel( 'Region clumpiness (Default: 0.8):       ' )
         self.cluster_text = QLabel( 'Rare color suppression (Default: 20):' )
-        self.palette_text = QLabel( 'Palette size (Default: 6):' )
-        self.blend_text = QLabel( 'Palette blends (Default: 3):' )
+        self.palette_text = QLabel( 'Palette size (Default: 6):                     ' )
+        self.blend_text = QLabel( 'Palette blends (Default: 3):                 ' )
         
         self.blur_window_text.setMaximumWidth( 250 )
         self.blur_text.setMaximumWidth( 250 )
@@ -382,17 +383,17 @@ class MainWindow( QWidget ):
         self.b_sld.setMaximumWidth( 200 )
         self.b_sld.valueChanged.connect( self.b_change_slider )
         
-        self.recolor_btn = QPushButton( 'Re-color!' )
-        self.recolor_btn.clicked.connect( self.recolor_via_palette )
-        self.recolor_btn.setToolTip( 'Press the button to <b>recolor</b> the image via palette color.' ) 
-        self.recolor_btn.setMinimumWidth( 90 )
-        self.recolor_btn.setMaximumWidth( 90 )
+        self.recolor_btn = QPushButton( 'Reset current color' )
+        self.recolor_btn.clicked.connect( self.reset_current_recoloring )
+        self.recolor_btn.setToolTip( 'Press the button to <b>reset</b> the current palette color.' ) 
+        self.recolor_btn.setMinimumWidth( 150 )
+        self.recolor_btn.setMaximumWidth( 150 )
         
-        self.undo_recolor_btn = QPushButton( 'Undo all recolorings' )
-        self.undo_recolor_btn.clicked.connect( self.undo_recoloring )
-        self.undo_recolor_btn.setToolTip( 'Press the button to <b>undo</b> your previous recoloring.' ) 
-        self.undo_recolor_btn.setMinimumWidth( 170 )
-        self.undo_recolor_btn.setMaximumWidth( 170 )
+        self.undo_recolor_btn = QPushButton( 'Reset all colors' )
+        self.undo_recolor_btn.clicked.connect( self.reset_all_recoloring )
+        self.undo_recolor_btn.setToolTip( 'Press the button to <b>undo</b> your all previous recolorings.' ) 
+        self.undo_recolor_btn.setMinimumWidth( 150 )
+        self.undo_recolor_btn.setMaximumWidth( 150 )
         
         
         ### BOX FRAMES
@@ -404,26 +405,32 @@ class MainWindow( QWidget ):
         
         
         # Separate boxes for parameters
+        sld_box_palette.addWidget( self.palette_text )
         sld_box_palette.addWidget( self.palette_sld )
         sld_box_palette.addWidget( self.palette_sld_label )
         sld_box_palette.addStretch(8)
         
+        sld_box_blend.addWidget( self.blend_text )
         sld_box_blend.addWidget( self.blend_sld )
         sld_box_blend.addWidget( self.blend_sld_label )
         sld_box_blend.addStretch(8)
         
+        sld_box_cluster.addWidget( self.cluster_text )
         sld_box_cluster.addWidget( self.cluster_sld )
         sld_box_cluster.addWidget( self.cluster_sld_label )
         sld_box_cluster.addStretch(8)
         
+        sld_box_binary.addWidget( self.binary_text )
         sld_box_binary.addWidget( self.binary_sld )
         sld_box_binary.addWidget( self.binary_sld_label )
         sld_box_binary.addStretch(8)
         
+        sld_box_blur.addWidget( self.blur_text )
         sld_box_blur.addWidget( self.blur_sld )
         sld_box_blur.addWidget( self.blur_sld_label )
         sld_box_blur.addStretch(8)
         
+        sld_box_window.addWidget( self.blur_window_text )
         sld_box_window.addWidget( self.blur_window_sld )
         sld_box_window.addWidget( self.blur_window_sld_label )
         sld_box_window.addStretch(8)
@@ -479,43 +486,32 @@ class MainWindow( QWidget ):
         grid.addLayout( btns_io_box, 0, 0 )
         
         ### parameters for posterization
-        grid.addWidget( self.palette_text, 2, 0 )
         grid.addLayout( sld_box_palette, 3, 0 )
-        
-        grid.addWidget( self.blend_text, 4, 0 )
-        grid.addLayout( sld_box_blend, 5, 0 )
-        
-        grid.addWidget( self.cluster_text, 6, 0 )
-        grid.addLayout( sld_box_cluster, 7, 0 )
-        
-        grid.addWidget( self.binary_text, 8, 0 )
-        grid.addLayout( sld_box_binary, 9, 0 )
-        
-        grid.addWidget( self.posterize_btn, 10, 0 )
+        grid.addLayout( sld_box_blend, 4, 0 )
+        grid.addLayout( sld_box_cluster, 5, 0 )
+        grid.addLayout( sld_box_binary, 6, 0 )
+        grid.addWidget( self.posterize_btn, 7, 0 )
         
         ### parameters for smoothing
-        grid.addWidget( self.blur_text, 12, 0 )
-        grid.addLayout( sld_box_blur, 13, 0 )
-        
-        grid.addWidget( self.blur_window_text, 14, 0 )
-        grid.addLayout( sld_box_window, 15, 0 )
-        
-        grid.addLayout( blur_box, 16, 0 )
+        grid.addLayout( sld_box_blur, 9, 0 )
+        grid.addLayout( sld_box_window, 10, 0 )
+        grid.addLayout( blur_box, 11, 0 )
     
+        ### boxes for previous/next and show/hide
         grid.addLayout( pages_box, 0, 10 )
         grid.addLayout( show_hide_box, 0, 11 )
         
         ### sliders for recoloring
-        grid.addWidget( self.rgb_text, 18, 0 )
-        grid.addLayout( combo_recolor_box, 19, 0 )
-        grid.addLayout( sld_r_recolor, 20, 0 )
-        grid.addLayout( sld_g_recolor, 21, 0 )
-        grid.addLayout( sld_b_recolor, 22, 0 )
-        grid.addLayout( recolor_btn_box, 23, 0 )
+        grid.addWidget( self.rgb_text, 13, 0 )
+        grid.addLayout( combo_recolor_box, 14, 0 )
+        grid.addLayout( sld_r_recolor, 15, 0 )
+        grid.addLayout( sld_g_recolor, 16, 0 )
+        grid.addLayout( sld_b_recolor, 17, 0 )
+        grid.addLayout( recolor_btn_box, 18, 0 )
         
         
-        grid.addLayout( img_box, 1, 1, 24, 24 )
-        self.setLayout(grid) 
+        grid.addLayout( img_box, 1, 1, 20, 20 )
+        self.setLayout(grid)
         
         self.show()
     
@@ -543,26 +539,51 @@ class MainWindow( QWidget ):
         default_color = self.palette_recolor[0]
         self.set_rgb_slider( default_color )
     
+    def get_recolor_img_and_palette( self ):
+        
+        recolor_img = ( self.weights_per_pixel @ self.palette_recolor ).reshape( self.input_image.shape )
+        recolor_smooth_img = post_smoothing( PIL.Image.fromarray( np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 ), 'RGB' ),
+            self.blur_slider_val, blur_window = self.blur_window_slider_val )
+        
+        new_palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( self.palette_recolor ) * 
+            255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
+        
+        return recolor_smooth_img, new_palette
+    
     def recolor_via_palette( self ):
+        color_indx = int( self.combobox.currentText() ) - 1
+        r_value = self.r_sld.value()
+        g_value = self.g_sld.value()
+        b_value = self.b_sld.value()
+            
+        self.palette_recolor[ color_indx ] = np.array([ r_value, g_value, b_value ]) / 255.
+
+        recolor_img, new_palette = self.get_recolor_img_and_palette()
+            
+        self.add_to_paletteList( new_palette )
+        self.add_to_imageList( recolor_img )
+            
+        self.set_image( self.imageLabel, self.imageList[-1] )
+        self.set_image( self.paletteLabel, self.paletteList[-1] )
+            
+        # update current index position
+        self.current_image_indx = len( self.imageList ) - 1
+    
+    def reset_current_recoloring( self ):
         if self.posterized_image_wo_smooth[0][0][0] == -1:
             QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
         else:
+            # visualization for current combox text
             color_indx = int( self.combobox.currentText() ) - 1
-            r_value = self.r_sld.value()
-            g_value = self.g_sld.value()
-            b_value = self.b_sld.value()
+            current_color = self.palette_og[ color_indx ]
+            self.set_rgb_slider( current_color )
             
-            self.palette_recolor[ color_indx ] = np.array([ r_value, g_value, b_value ]) / 255.
-
-            recolor_img = ( self.weights_per_pixel @ self.palette_recolor ).reshape( self.input_image.shape )
-            recolor_smooth_img = post_smoothing( PIL.Image.fromarray( np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 ), 'RGB' ),
-                self.blur_slider_val, blur_window = self.blur_window_slider_val )
+            self.palette_recolor[ color_indx ] = self.palette_og[ color_indx ].copy()
             
-            new_palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( self.palette_recolor ) * 
-                255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
+            recolor_img, new_palette = self.get_recolor_img_and_palette()
             
             self.add_to_paletteList( new_palette )
-            self.add_to_imageList( recolor_smooth_img )
+            self.add_to_imageList( recolor_img )
             
             self.set_image( self.imageLabel, self.imageList[-1] )
             self.set_image( self.paletteLabel, self.paletteList[-1] )
@@ -570,7 +591,7 @@ class MainWindow( QWidget ):
             # update current index position
             self.current_image_indx = len( self.imageList ) - 1
     
-    def undo_recoloring( self ):
+    def reset_all_recoloring( self ):
         if self.posterized_image_wo_smooth[0][0][0] == -1:
             QMessageBox.warning( self, 'Warning', 'Please posterize your image first' )
         else:
@@ -825,8 +846,8 @@ class MainWindow( QWidget ):
         else:
             print( "Start smoothing." )
                 
-            messagebox = TimerMessageBox( 1, self )
-            messagebox.open()
+            #messagebox = TimerMessageBox( 1, self )
+            #messagebox.open()
                 
             self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
             print( "Smoothing Finished." )
@@ -854,7 +875,13 @@ class MainWindow( QWidget ):
                 image_name = QFileDialog.getSaveFileName( self, 'Save Image' )
                 if not image_name:
                     return
-                Image.fromarray( self.imageList[self.current_image_indx] ).save( image_name[0] + '.png')
+                
+                if image_name[0][-4:] in ['.jpg', '.png']:
+                    path_name = image_name[0]
+                else:
+                    path_name = image_name[0] + '.png'
+                    
+                Image.fromarray( self.imageList[self.current_image_indx] ).save( path_name )
             else:
                 pass
     
@@ -872,7 +899,13 @@ class MainWindow( QWidget ):
                 image_name = QFileDialog.getSaveFileName( self, 'Save Palette' )
                 if not image_name:
                     return
-                Image.fromarray( self.paletteList[self.current_image_indx] ).save( image_name[0] + '.png')
+                
+                if image_name[0][-4:] in ['.jpg', '.png']:
+                    path_name = image_name[0]
+                else:
+                    path_name = image_name[0] + '.png'
+                    
+                Image.fromarray( self.paletteList[self.current_image_indx] ).save( path_name )
             else:
                 pass
     
