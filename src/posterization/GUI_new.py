@@ -70,7 +70,7 @@ class MainWindow( QWidget ):
         #self.setStyleSheet("background-color: white;") 
         
         # Set the welcome icon in GIF
-        self.welcome_img_path =  str( Path( __file__ ).parent/"car.jpg" )
+        self.welcome_img_path =  str( Path( __file__ ).parent / "car.jpg" )
         #self.welcome_img_path = "car.jpg"
         self.welcome = QPixmap( self.welcome_img_path )
         self.imageLabel = QLabel()
@@ -116,7 +116,7 @@ class MainWindow( QWidget ):
         
         
         #### BOXES
-        btns_io_box = QVBoxLayout() # set bottons' box for I/O
+        btns_io_box = QHBoxLayout() # set bottons' box for I/O
         
         # algorithm_btns_box = QVBoxLayout() # set bottons' box for algorithms
         sld_box_palette = QHBoxLayout()
@@ -142,37 +142,37 @@ class MainWindow( QWidget ):
         
         #### BUTTONS
         # button for selecting an input image
-        self.img_btn = QPushButton( 'Choose image' )
+        self.img_btn = QPushButton( 'Choose Image' )
         self.img_btn.clicked.connect( self.get_image )
         self.img_btn.setToolTip( 'Press the button to <b>select</b> an image.' ) 
         self.img_btn.setMaximumWidth( 150 )
         
         # button for posterizing the given image
-        self.posterize_btn = QPushButton( 'Posterize!' )
+        self.posterize_btn = QPushButton( 'Posterize' )
         self.posterize_btn.clicked.connect( self.posterize )
         self.posterize_btn.setToolTip( 'Press the button to <b>posterize</b> your image.' ) 
-        self.posterize_btn.setMaximumWidth( 150 )
+        self.posterize_btn.setMaximumWidth( 110 )
         
         # button for re-smoothing the posterized image
-        self.smooth_btn = QPushButton( 'Re-smooth' )
+        self.smooth_btn = QPushButton( 'Re-Smooth' )
         self.smooth_btn.clicked.connect( self.smooth )
         self.smooth_btn.setToolTip( 'Press the button to <b>re-smooth</b> your posterized image.' ) 
         self.smooth_btn.setMaximumWidth( 150 )
         
         # button for loading the saliency map
-        self.map_btn = QPushButton( 'Smooth with custom map' )
+        self.map_btn = QPushButton( 'Smooth with Custom Map' )
         self.map_btn.clicked.connect( self.pop_up_load_saliency_map )
         self.map_btn.setToolTip( 'Press the button to <b>load</b> your own map to blur.' ) 
         self.map_btn.setMaximumWidth( 180 )
 
         # button for saving the posterized image
-        self.save_btn = QPushButton( 'Save current image' )
+        self.save_btn = QPushButton( 'Save Current Image' )
         self.save_btn.clicked.connect( self.save_current_image )
         self.save_btn.setToolTip( 'Press the button to <b>save</b> your current image.' ) 
         self.save_btn.setMaximumWidth( 150 )
         
         # button for saving the palette
-        self.save_palette_btn = QPushButton( 'Save palette' )
+        self.save_palette_btn = QPushButton( 'Save Palette' )
         self.save_palette_btn.clicked.connect( self.save_current_palette )
         self.save_palette_btn.setToolTip( 'Press the button to <b>save</b> the palette.' ) 
         self.save_palette_btn.setMaximumWidth( 150 )
@@ -192,13 +192,13 @@ class MainWindow( QWidget ):
         self.next_btn.setMaximumWidth( 165 )
         
         #### Show/Hide buttons
-        self.palette_btn = QPushButton( 'Show/Hide palette' )
+        self.palette_btn = QPushButton( 'Show/Hide Palette' )
         self.palette_btn.clicked.connect( self.show_hide_palette )
         self.palette_btn.setToolTip( 'Press the button to <b>show</b> or <b>hide</b> the palette.' ) 
         self.palette_btn.setMinimumWidth( 165 )
         self.palette_btn.setMaximumWidth( 165 )
         
-        self.og_img_btn = QPushButton( 'Show/Hide input image' )
+        self.og_img_btn = QPushButton( 'Show/Hide Input Image' )
         self.og_img_btn.clicked.connect( self.show_hide_input_image )
         self.og_img_btn.setToolTip( 'Press the button to <b>show</b> your input image.' ) 
         self.og_img_btn.setMinimumWidth( 165 )
@@ -330,7 +330,7 @@ class MainWindow( QWidget ):
         self.g_slider_val = 0
         self.b_slider_val = 0
         
-        self.rgb_text = QLabel( '\u2022 Recolor the image via palette:' )
+        self.rgb_text = QLabel( 'Recolor the image via its palette:' )
         
         self.rgb_text.setMaximumWidth( 250 )
         
@@ -383,13 +383,13 @@ class MainWindow( QWidget ):
         self.b_sld.setMaximumWidth( 200 )
         self.b_sld.valueChanged.connect( self.b_change_slider )
         
-        self.recolor_btn = QPushButton( 'Reset current color' )
+        self.recolor_btn = QPushButton( 'Reset Current Color' )
         self.recolor_btn.clicked.connect( self.reset_current_recoloring )
         self.recolor_btn.setToolTip( 'Press the button to <b>reset</b> the current palette color.' ) 
         self.recolor_btn.setMinimumWidth( 150 )
         self.recolor_btn.setMaximumWidth( 150 )
         
-        self.undo_recolor_btn = QPushButton( 'Reset all colors' )
+        self.undo_recolor_btn = QPushButton( 'Reset All Colors' )
         self.undo_recolor_btn.clicked.connect( self.reset_all_recoloring )
         self.undo_recolor_btn.setToolTip( 'Press the button to <b>undo</b> your all previous recolorings.' ) 
         self.undo_recolor_btn.setMinimumWidth( 150 )
@@ -397,11 +397,10 @@ class MainWindow( QWidget ):
         
         
         ### BOX FRAMES
-        btns_io_box.addStretch(20)
         btns_io_box.addWidget( self.img_btn )
         btns_io_box.addWidget( self.save_btn )
         btns_io_box.addWidget( self.save_palette_btn )
-        btns_io_box.addStretch(20)
+        btns_io_box.addStretch(40)
         
         
         # Separate boxes for parameters
@@ -481,36 +480,36 @@ class MainWindow( QWidget ):
         
         # Set grid layout
         grid = QGridLayout()
-        grid.setSpacing(15)
+        grid.setSpacing(12)
         
         grid.addLayout( btns_io_box, 0, 0 )
         
         ### parameters for posterization
-        grid.addLayout( sld_box_palette, 3, 0 )
-        grid.addLayout( sld_box_blend, 4, 0 )
-        grid.addLayout( sld_box_cluster, 5, 0 )
-        grid.addLayout( sld_box_binary, 6, 0 )
-        grid.addWidget( self.posterize_btn, 7, 0 )
+        grid.addLayout( sld_box_palette, 1, 0 )
+        grid.addLayout( sld_box_blend, 2, 0 )
+        grid.addLayout( sld_box_cluster, 3, 0 )
+        grid.addLayout( sld_box_binary, 4, 0 )
+        grid.addWidget( self.posterize_btn, 5, 0 )
         
         ### parameters for smoothing
-        grid.addLayout( sld_box_blur, 9, 0 )
-        grid.addLayout( sld_box_window, 10, 0 )
-        grid.addLayout( blur_box, 11, 0 )
+        grid.addLayout( sld_box_blur, 7, 0 )
+        grid.addLayout( sld_box_window, 8, 0 )
+        grid.addLayout( blur_box, 9, 0 )
     
         ### boxes for previous/next and show/hide
         grid.addLayout( pages_box, 0, 10 )
         grid.addLayout( show_hide_box, 0, 11 )
         
         ### sliders for recoloring
-        grid.addWidget( self.rgb_text, 13, 0 )
-        grid.addLayout( combo_recolor_box, 14, 0 )
-        grid.addLayout( sld_r_recolor, 15, 0 )
-        grid.addLayout( sld_g_recolor, 16, 0 )
-        grid.addLayout( sld_b_recolor, 17, 0 )
-        grid.addLayout( recolor_btn_box, 18, 0 )
+        grid.addWidget( self.rgb_text, 11, 0 )
+        grid.addLayout( combo_recolor_box, 12, 0 )
+        grid.addLayout( sld_r_recolor, 13, 0 )
+        grid.addLayout( sld_g_recolor, 14, 0 )
+        grid.addLayout( sld_b_recolor, 15, 0 )
+        grid.addLayout( recolor_btn_box, 16, 0 )
         
         
-        grid.addLayout( img_box, 1, 1, 20, 20 )
+        grid.addLayout( img_box, 1, 1, 18, 18 )
         self.setLayout(grid)
         
         self.show()
@@ -963,7 +962,7 @@ class MainWindow( QWidget ):
     
     # Function if users tend to close the app
     def closeEvent( self, event ):
-        reply = QMessageBox.question( self, 'Message', "Are you sure to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
+        reply = QMessageBox.question( self, 'Message', "Are you sure you want to quit?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
         
         if reply == QMessageBox.Yes:
             event.accept()
