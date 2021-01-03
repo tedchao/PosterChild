@@ -24,6 +24,8 @@ Then:
     conda env create -f environment.yml
     conda activate posterization
 
+To update an already created environment if the `environment.yml` file changes, first activate and then run `conda env update --file environment.yml --prune`.
+
 ## Usage
 
 Launch the GUI:
