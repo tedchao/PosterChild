@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import PIL.Image
+import PIL.ImageTk
 
 import gco
 
@@ -17,6 +18,7 @@ import time
 
 from . import simplepalettes
 from .simplify_convexhull import *
+
 
 def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_blend ):
     '''
@@ -36,15 +38,11 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
     for i in range( num_colors ):
         neighbor_list.append( [] )
 
-    '''
-    for i in range( num_colors ):
-        neighbor_list.append( mesh.vertex_vertex_neighbors ( i ) )
-    '''
-    
+
     # discrete blendings
-    candidate_colors = mesh.vs
+    candidate_colors = mesh
     pos_iter = num_colors
-        
+    
     for i in range( num_colors ):
         for j in range( i+1, num_colors ):
             
@@ -67,11 +65,7 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
                 else:
                     #if k != 0 and k != num_blend - 1:
                     neighbor_list.append( [pos_iter + k - 1, pos_iter + k + 1] )
-            '''
-            if i in neighbor_list[j]:
-                neighbor_list[i].remove( j )
-                neighbor_list[j].remove( i )
-            '''
+
             # add palette weight for each color to weight list
             for s in range( num_blend ):
                 weights = num_colors * [0]
@@ -81,57 +75,8 @@ def get_candidate_colors_and_neighbor_list( mesh, weight_list, num_colors, num_b
                 
             pos_iter += num_blend
             
-            
-            '''
-            if num_blend == 3:
-                # add to candidate colors
-                candidate_colors = np.vstack( ( candidate_colors, a * candidate_colors[i] + (1-a) * candidate_colors[j] ) ) # middle blend
-                candidate_colors = np.vstack( ( candidate_colors, b * candidate_colors[i] + (1-b) * candidate_colors[j] ) ) # close to j
-                candidate_colors = np.vstack( ( candidate_colors, c * candidate_colors[i] + (1-c) * candidate_colors[j] ) ) # close to i
-                    
-                neighbor_list[i].append( pos_iter + 2 ) 
-                neighbor_list[j].append( pos_iter + 1 )
-                    
-                neighbor_list.append( [pos_iter+1, pos_iter+2] )     # first color
-                neighbor_list.append( [j, pos_iter] )
-                neighbor_list.append( [i, pos_iter] )
-                    
-                if i in neighbor_list[j]:
-                    neighbor_list[i].remove( j )
-                    neighbor_list[j].remove( i )
-                    
-                # add palette weight for each color to weight list
-                for s in range( 3 ):
-                    weights = num_colors * [0]
-                    weights[i] = blends[s][0]
-                    weights[j] = blends[s][1]
-                    weight_list.append( weights )
-                    
-                pos_iter += 3
-                
-            if num_blend == 1:
-                
-                # add to candidate colors
-                candidate_colors = np.vstack( ( candidate_colors, a * candidate_colors[i] + ( 1 - a ) * candidate_colors[j] ) ) # middle blend
-                
-                neighbor_list[i].append( pos_iter )
-                neighbor_list[j].append( pos_iter )
-                
-                neighbor_list.append( [i, j] )
-                
-                if i in neighbor_list[j]:
-                    neighbor_list[i].remove( j )
-                    neighbor_list[j].remove( i )
-                
-                weights = num_colors * [0]
-                weights[i] = blends[0][0]
-                weights[j] = blends[0][1]
-                weight_list.append( weights )
-                pos_iter += 1
-            '''
-            
     return candidate_colors, neighbor_list, np.array( weight_list )
-    
+
     
 @jit(nopython=True)
 def get_unary( image_arr, candidate_colors ):
@@ -143,7 +88,7 @@ def get_unary( image_arr, candidate_colors ):
     
     # unary.shape = (486, 864, len(labels)) ideally!
     unary = np.zeros( ( image_arr.shape[0], image_arr.shape[1], len( candidate_colors ) ) )
-        
+    
     for i in range( len( candidate_colors ) ):
         dist_square = ( candidate_colors[i] - image_arr ) ** 2
         unary[:, :, i] = np.sqrt( np.sum( dist_square, axis = 2 ) )
@@ -158,7 +103,7 @@ def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penali
     
     Return: Binary energy for MLO.
     '''
-
+    
     # 1 if neighbor, (inf) if not neighbor, diag(binary) = 0
     if option == 1:
         binary = np.ones( ( len( neighbor_list ), len( neighbor_list ) ) ) * np.inf
@@ -167,11 +112,11 @@ def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penali
             for j in range( len( candidate_colors ) ):
                 if i == j:
                     binary[i][j] = 0
-        
+                    
         for i in range( len( neighbor_list ) ):
             for j in range( len( neighbor_list[i] ) ):
                 binary[i][neighbor_list[i][j]] = 0.5
-
+                
     # half of the L1 norm distance based on weights on each palette
     if option == 2:
         binary = np.zeros( ( len( neighbor_list ), len( neighbor_list ) ) )
@@ -179,9 +124,9 @@ def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penali
             for j in range( len( candidate_colors ) ):
                 if i != j:
                     binary[i][j] = penalization * np.linalg.norm( ( candidate_colors[i] - candidate_colors[j] ), ord=2 )
-
+                    
     return binary
-    
+
 @jit(nopython=True)
 def get_nonrepeated_labels( labels ):
     '''
@@ -224,7 +169,7 @@ def optimize_weight( labels, nonrepeated_labels, weight_list, palette, image_arr
     palette_labels = []
     for i in range( len( palette ) ):
         palette_labels.append( i )
-    
+        
     for label in nonrepeated_labels:
         if label not in palette_labels:
             F_label = []
@@ -232,7 +177,7 @@ def optimize_weight( labels, nonrepeated_labels, weight_list, palette, image_arr
                 for j in range( height ):
                     if labels[i][j] == label:
                         F_label.append( image_arr[i, j, :] )
-            
+                        
             # quadratic programming            
             F_prime = np.array( F_label )
             pixel_size = F_prime.shape[0]           
@@ -261,7 +206,7 @@ def optimize_weight( labels, nonrepeated_labels, weight_list, palette, image_arr
             nonzero_pos = np.nonzero( w_lst )[0]
             weight_list[label][nonzero_pos[0]] = x
             weight_list[label][nonzero_pos[1]] = 1-x
-    
+            
     return weight_list
 
 
@@ -316,7 +261,7 @@ def get_kmeans_cluster_image( num_clusters, img_arr, width, height, final_colors
             num_clusters = len( final_colors ) - 10
         img_arr_rgbxy = RGB_to_RGBXY( img_arr, width, height )
         print( 'Final colors being used after Kmeans RGBXY:', num_clusters )
-    
+        
     if option == 2:
         kmeans = KMeans( n_clusters = num_clusters, random_state = 0 ).fit( img_arr_rgbxy )
     else:
@@ -336,8 +281,8 @@ def get_kmeans_cluster_image( num_clusters, img_arr, width, height, final_colors
         return img_arr, kmeans_labels, clusters
     else:
         return img_arr
-
-
+    
+    
 def save_additive_mixing_layers( add_mix_layers, width, height, palette, save_path ):
     '''
     Given:
@@ -362,14 +307,14 @@ def save_additive_mixing_layers( add_mix_layers, width, height, palette, save_pa
             for j in range( height ):
                 img_add_mix[i, j, :3] = paint
                 img_add_mix[i, j, 3] = add_mix_layers[i, j, color]
-            
+                
         return img_add_mix
     
     for i in range( palette.shape[0] ):
         img_add_mix = get_additive_mixing_layers( add_mix_layers, width, height, palette, i )
         Image.fromarray( np.clip( 0, 255, img_add_mix * 255. ).astype( np.uint8 ), 'RGBA' ).save( save_path + '-' + str( i ) + '.png' )
-
-
+        
+        
 def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 3, penalization = 0.7 ):
     '''
     Given:
@@ -393,20 +338,37 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         '''
         Given: path for input image, an n-rows by m-columns array of RGB colors (after Kmeans RGB).
         
-        Return: Simplified convexhull for clustered input image (mesh object).
+        Return: Simplified convexhull for clustered input image (numpy array).
         '''
         
         # reshape image array into scipy.convexhull
         img_reshape = image_arr.reshape( ( -1, 3 ) )
-        og_hull = ConvexHull( img_reshape )
-        output_rawhull_obj_file = path + "-rawconvexhull.obj"
-        write_convexhull_into_obj_file( og_hull, output_rawhull_obj_file )		
         
-        # get simplified convexhull (clipped already)
-        mesh = simplified_convex_hull( output_rawhull_obj_file, num_colors )
+        relative_mesh = img_reshape - img_reshape[0]    # test if grayscale (rank = 1, relatively)
         
+        if np.linalg.matrix_rank( relative_mesh ) == 1:   # grayscale or monotone
+            max_indx, min_indx = np.argmax( img_reshape ), np.argmin( img_reshape )
+            
+            rhs_pt, lhs_pt = img_reshape[ max_indx ], img_reshape[ min_indx ]
+            mesh = np.array([ [0, 0, 0], [1, 1, 1] ])
+        
+            spectrum = np.linalg.norm( rhs_pt - lhs_pt )
+            ratio = spectrum / ( num_colors - 1 )
+            vec = ( rhs_pt - lhs_pt ) / np.linalg.norm( rhs_pt - lhs_pt )
+            for i in range( num_colors - 2 ):
+                new_pt = lhs_pt + ( i + 1 ) * ratio * vec 
+                mesh = np.vstack( ( mesh, new_pt ) )
+                
+        else:
+            og_hull = ConvexHull( img_reshape )
+            output_rawhull_obj_file = path + "-rawconvexhull.obj"
+            write_convexhull_into_obj_file( og_hull, output_rawhull_obj_file )		
+            
+            # get simplified convexhull (clipped already)
+            mesh = simplified_convex_hull( output_rawhull_obj_file, num_colors ).vs
+            
         return mesh
-
+    
     def get_initial_weight_ls( num_colors ):
         '''
         Given: number of palette colors for the poster.
@@ -419,9 +381,9 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
             weight = num_colors * [0]
             weight[i] = 1
             weight_list.append( weight )
-        
+            
         return weight_list
-        
+    
     def MLO( image_og, candidate_colors, neighbor_list, weight_list):
         '''
         Given: original given image, list of candidate colors, list of 
@@ -435,7 +397,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         
         unary = get_unary( image_og, candidate_colors )
         binary = get_binary( neighbor_list, weight_list, candidate_colors, option = 2, penalization = penalization )
-            
+        
         # get final labels from the optimization (alpha-beta swap)
         labels = gco.cut_grid_graph_simple( unary, binary, n_iter = 100, algorithm='swap' ) 
         
@@ -443,7 +405,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
     
     def get_final_colors_from_opt_weight( labels, weight_list, palette ):
         '''
-        Given: nonrepeated labels, optimized weight list.
+        Given: nonrepeated labels, optimized weight list, palette (numpy array).
         
         Return: a list of final colors used after MLO.
         '''
@@ -452,7 +414,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         final_colors = []
         for label in labels:
             w = np.array( weight_list[label] )
-            color = w @ palette.vs
+            color = w @ palette
             final_colors.append( list( color ) )	
             
         return final_colors
@@ -464,7 +426,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         
         Return: RGBs per-pixel based on results labels, additive mixing layers.
         '''
-
+        
         # convert labels to RGBs
         # visualize additive mixing layers
         image_arr = np.zeros( ( labels.size, 3 ) )
@@ -472,7 +434,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         for i in range( labels.size ):
             image_arr[i, :] = np.array( final_colors[ nonrepeated_labels.index( labels[i] ) ] )
             add_mix_layers[i, :] = np.array( weight_list[ labels[i] ] )
-        
+            
         # return image_arr
         return image_arr, add_mix_layers
     
@@ -489,7 +451,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
         for label in nonrepeated_labels:
             color = clusters[label][:3]
             final_colors_RGBXY.append( color )
-        
+            
         return final_colors_RGBXY
     
     weight_list = get_initial_weight_ls( num_colors )
@@ -503,7 +465,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
     
     # locally optimize weights
     nonrepeated_mlo_labels = get_nonrepeated_labels( mlo_labels )
-    optimized_weight_list = optimize_weight( mlo_labels, nonrepeated_mlo_labels, weight_list, palette.vs, image_arr )
+    optimized_weight_list = optimize_weight( mlo_labels, nonrepeated_mlo_labels, weight_list, palette, image_arr )
     
     # compute final optimized colors in each layer
     mlo_final_colors = get_final_colors_from_opt_weight( nonrepeated_mlo_labels, optimized_weight_list, palette )
@@ -517,7 +479,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
     
     image_RGB = image_mlo.reshape( image_og.shape )
     
-    return image_RGB, mlo_final_colors, add_mix_layers, palette.vs 
+    return image_RGB, mlo_final_colors, add_mix_layers, palette
 
 
 ######################################################
@@ -529,21 +491,6 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
     
     print( 'Start smoothing images... ')
     
-    @jit(nopython=True)
-    def get_median_color( window ):
-        
-        channel1 = window[:, :, 0]
-        channel2 = window[:, :, 1]
-        channel3 = window[:, :, 2]
-        
-        color = np.zeros( (  3 ), dtype = np.uint8 )
-        
-        color[0] = np.median( channel1 )
-        color[1] = np.median( channel2 )
-        color[2] = np.median( channel3 )
-        
-        return color
-    
     def medianBlur_truncate( img, dft_img, window_size ):
         filtered_img = cv2.medianBlur( img, window_size )
         if blur_map is None:
@@ -551,29 +498,6 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
         else:
             filtered_img[ dft_img >= blur_map ] = img[ dft_img >= blur_map ]
         return filtered_img
-        
-        '''
-        margin = int( ( window_size - 1 ) / 2 )
-        
-        filtered_img = np.copy( img )
-        for i in range( margin, img.shape[0] - margin ):
-            for j in range( margin, img.shape[1] - margin ):
-                
-                if blur_map is None:
-                    if dft_img[i, j] < threshold:
-                        window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
-                        
-                        median_color = get_median_color( window )
-                        filtered_img[i, j] = median_color
-                else:
-                    if dft_img[i, j] < blur_map[i, j]:
-                        window = img[i - margin: i + margin + 1, j - margin: j + margin + 1]
-                        
-                        median_color = get_median_color( window )
-                        filtered_img[i, j] = median_color
-                    
-        return filtered_img
-        '''
     
     cv2_img_mlo = np.array( img_mlo )
     
