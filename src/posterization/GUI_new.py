@@ -705,7 +705,7 @@ class MainWindow( QWidget ):
         height, width, dim = image.shape
         qim = QImage( image.data, width, height, 3 * width, QImage.Format_RGB888 )
         panel.setPixmap( QPixmap( qim ) )
-        #panel.repaint()
+        panel.repaint()
     
     def add_to_imageList( self, image ):
         self.imageList.append( np.asarray( image ) )
@@ -763,8 +763,10 @@ class MainWindow( QWidget ):
         if self.imagePath == "":
             img_arr = np.asfarray( PIL.Image.open( self.welcome_img_path ).convert( 'RGB' ) ) / 255.
             self.input_image = img_arr
+            path = self.welcome_img_path
         else:
             img_arr = np.asfarray( PIL.Image.open( self.imagePath ).convert( 'RGB' ) ) / 255.
+            path = self.imagePath
         
         width, height, dim = img_arr.shape
         length = max( width, height )
@@ -801,7 +803,7 @@ class MainWindow( QWidget ):
             
             # MLO
             post_img, final_colors, add_mix_layers, palette = \
-            posterization( self.imagePath, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
+            posterization( path, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
             
             ### setting for recoloring
             self.weights_per_pixel = add_mix_layers # save weight list per pixel
@@ -821,13 +823,13 @@ class MainWindow( QWidget ):
                 
             end = time.time()
             print( "Finished. Total time: ", end - start )
-                
+            
             self.add_to_paletteList( self.palette )
             self.add_to_imageList( self.posterized_image_w_smooth )
-                
+            
             self.set_image( self.imageLabel, self.imageList[-1] )
             self.set_image( self.paletteLabel, self.paletteList[-1] )
-                
+            
             # update current index position
             self.current_image_indx = len( self.imageList ) - 1
             
