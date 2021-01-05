@@ -531,6 +531,8 @@ class MainWindow( QWidget ):
         self.set_rgb_slider( color )
     
     def set_combo_icon( self ):
+        self.combobox.clear()     # reset combo box
+        
         for i in range( len( self.palette_recolor ) ):
             self.combobox.addItem( str( i + 1 ) )
             
