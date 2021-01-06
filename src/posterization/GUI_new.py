@@ -500,8 +500,7 @@ class MainWindow( QWidget ):
         grid.addLayout( sld_box_palette, 1, 0 )
         grid.addLayout( sld_box_blend, 2, 0 )
         grid.addLayout( sld_box_cluster, 3, 0 )
-        grid.addLayout(
-            sld_box_binary, 4, 0 )
+        grid.addLayout( sld_box_binary, 4, 0 )
         grid.addLayout( btns_posterize_box, 5, 0 )
         
         ### parameters for smoothing
@@ -732,7 +731,7 @@ class MainWindow( QWidget ):
         height, width, dim = image.shape
         qim = QImage( image.data, width, height, 3 * width, QImage.Format_RGB888 )
         panel.setPixmap( QPixmap( qim ) )
-        #panel.repaint()
+        panel.repaint()
     
     def add_to_imageList( self, image ):
         self.imageList.append( np.asarray( image ) )
@@ -836,9 +835,7 @@ class MainWindow( QWidget ):
             self.weights_per_pixel = add_mix_layers # save weight list per pixel
             self.palette_recolor = palette  # save for palette recoloring
             self.palette_og = self.palette_recolor.copy()
-            
-            if self.imagePath == "":
-                self.set_combo_icon()
+            self.set_combo_icon()
             
             # save palette
             # 'ascontiguousarray' to make a C contiguous copy 
