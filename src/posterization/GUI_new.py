@@ -126,6 +126,8 @@ class MainWindow( QWidget ):
         sld_box_blur = QHBoxLayout()
         sld_box_window = QHBoxLayout()
         
+        btns_posterize_box = QHBoxLayout() # set bottons' box for posterization and reset
+        
         sld_r_recolor = QHBoxLayout()
         sld_g_recolor = QHBoxLayout()
         sld_b_recolor = QHBoxLayout()
@@ -152,6 +154,12 @@ class MainWindow( QWidget ):
         self.posterize_btn.clicked.connect( self.posterize )
         self.posterize_btn.setToolTip( 'Press the button to <b>posterize</b> your image.' ) 
         self.posterize_btn.setMaximumWidth( 110 )
+        
+        # button for reseting posterization parameters
+        self.reset_posterize_btn = QPushButton( 'Reset' )
+        self.reset_posterize_btn.clicked.connect( self.reset_posterize )
+        self.reset_posterize_btn.setToolTip( 'Press the button to <b>reset</b> all posterization parameters.' ) 
+        self.reset_posterize_btn.setMaximumWidth( 110 )
         
         # button for re-smoothing the posterized image
         self.smooth_btn = QPushButton( 'Re-Smooth' )
@@ -424,6 +432,10 @@ class MainWindow( QWidget ):
         sld_box_binary.addWidget( self.binary_sld_label )
         sld_box_binary.addStretch(8)
         
+        btns_posterize_box.addWidget( self.posterize_btn )
+        btns_posterize_box.addWidget( self.reset_posterize_btn )
+        btns_posterize_box.addStretch(8)
+        
         sld_box_blur.addWidget( self.blur_text )
         sld_box_blur.addWidget( self.blur_sld )
         sld_box_blur.addWidget( self.blur_sld_label )
@@ -488,8 +500,9 @@ class MainWindow( QWidget ):
         grid.addLayout( sld_box_palette, 1, 0 )
         grid.addLayout( sld_box_blend, 2, 0 )
         grid.addLayout( sld_box_cluster, 3, 0 )
-        grid.addLayout( sld_box_binary, 4, 0 )
-        grid.addWidget( self.posterize_btn, 5, 0 )
+        grid.addLayout(
+            sld_box_binary, 4, 0 )
+        grid.addLayout( btns_posterize_box, 5, 0 )
         
         ### parameters for smoothing
         grid.addLayout( sld_box_blur, 7, 0 )
@@ -611,6 +624,18 @@ class MainWindow( QWidget ):
             
             # update current index position
             self.current_image_indx = len( self.imageList ) - 1
+            
+    ### Reset for posterization parameters
+    def reset_posterize( self ):
+        self.binary_change_slider( 80 )
+        self.cluster_change_slider( 20 )
+        self.palette_change_slider( 6 )
+        self.blend_change_slider( 3 )
+        
+        self.binary_sld.setSliderPosition( 80 )
+        self.cluster_sld.setSliderPosition( 20 )
+        self.palette_sld.setSliderPosition( 6 )
+        self.blend_sld.setSliderPosition( 3 )
     
     
     ### Slider functions
@@ -707,7 +732,7 @@ class MainWindow( QWidget ):
         height, width, dim = image.shape
         qim = QImage( image.data, width, height, 3 * width, QImage.Format_RGB888 )
         panel.setPixmap( QPixmap( qim ) )
-        panel.repaint()
+        #panel.repaint()
     
     def add_to_imageList( self, image ):
         self.imageList.append( np.asarray( image ) )
@@ -811,7 +836,9 @@ class MainWindow( QWidget ):
             self.weights_per_pixel = add_mix_layers # save weight list per pixel
             self.palette_recolor = palette  # save for palette recoloring
             self.palette_og = self.palette_recolor.copy()
-            self.set_combo_icon()
+            
+            if self.imagePath == "":
+                self.set_combo_icon()
             
             # save palette
             # 'ascontiguousarray' to make a C contiguous copy 
@@ -825,13 +852,13 @@ class MainWindow( QWidget ):
                 
             end = time.time()
             print( "Finished. Total time: ", end - start )
-            
+                
             self.add_to_paletteList( self.palette )
             self.add_to_imageList( self.posterized_image_w_smooth )
-            
+                
             self.set_image( self.imageLabel, self.imageList[-1] )
             self.set_image( self.paletteLabel, self.paletteList[-1] )
-            
+                
             # update current index position
             self.current_image_indx = len( self.imageList ) - 1
             
