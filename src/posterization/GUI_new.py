@@ -216,7 +216,7 @@ class MainWindow( QWidget ):
         #### SLIDERS
         # slider for palette size
         self.blend_sld = QSlider( Qt.Horizontal )
-        self.blend_sld.setRange( 1, 25 )
+        self.blend_sld.setRange( 0, 15 )
         self.blend_sld.setFocusPolicy( Qt.NoFocus )
         self.blend_sld.setSliderPosition( self.blend_slider_val )
         self.blend_sld.setPageStep( 1 )
@@ -520,7 +520,6 @@ class MainWindow( QWidget ):
         grid.addLayout( sld_b_recolor, 15, 0 )
         grid.addLayout( recolor_btn_box, 16, 0 )
         
-        
         grid.addLayout( img_box, 1, 1, 18, 18 )
         self.setLayout(grid)
         
@@ -568,9 +567,8 @@ class MainWindow( QWidget ):
         r_value = self.r_sld.value()
         g_value = self.g_sld.value()
         b_value = self.b_sld.value()
-            
+        
         self.palette_recolor[ color_indx ] = np.array([ r_value, g_value, b_value ]) / 255.
-
         recolor_img, new_palette = self.get_recolor_img_and_palette()
             
         self.add_to_paletteList( new_palette )
@@ -635,6 +633,11 @@ class MainWindow( QWidget ):
         self.cluster_sld.setSliderPosition( 20 )
         self.palette_sld.setSliderPosition( 6 )
         self.blend_sld.setSliderPosition( 3 )
+        
+        self.binary_sld.repaint()
+        self.cluster_sld.repaint()
+        self.palette_sld.repaint()
+        self.blend_sld.repaint()
     
     
     ### Slider functions
@@ -810,7 +813,6 @@ class MainWindow( QWidget ):
                 self.waitingtime = 4
             self.message += 'This will take roughly ' + str( self.waitingtime ) + ' minutes to process.\n\n'
             
-            
         reply = QMessageBox.question( self, 'Message', self.message + 'Do you want to proceed and posterize the image?',
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No )
         
@@ -822,7 +824,7 @@ class MainWindow( QWidget ):
                 
             messagebox = TimerMessageBox( 1, self )
             messagebox.open()
-                
+            
             # K-means
             img_arr_re = img_arr.reshape( ( -1, 3 ) )
             img_arr_cluster = get_kmeans_cluster_image( self.cluster_slider_val, img_arr_re, img_arr.shape[0], img_arr.shape[1] )

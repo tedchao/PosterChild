@@ -350,14 +350,16 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
             max_indx, min_indx = np.argmax( img_reshape ), np.argmin( img_reshape )
             
             rhs_pt, lhs_pt = img_reshape[ max_indx ], img_reshape[ min_indx ]
-            mesh = np.array([ [0, 0, 0], [1, 1, 1] ])
-        
+            mesh = np.array([ [0., 0., 0.], [1., 1., 1.] ])
+            '''
             spectrum = np.linalg.norm( rhs_pt - lhs_pt )
             ratio = spectrum / ( num_colors - 1 )
             vec = ( rhs_pt - lhs_pt ) / np.linalg.norm( rhs_pt - lhs_pt )
             for i in range( num_colors - 2 ):
                 new_pt = lhs_pt + ( i + 1 ) * ratio * vec 
                 mesh = np.vstack( ( mesh, new_pt ) )
+            '''
+            return mesh, 2
                 
         else:
             og_hull = ConvexHull( img_reshape )
@@ -367,7 +369,7 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
             # get simplified convexhull (clipped already)
             mesh = simplified_convex_hull( output_rawhull_obj_file, num_colors ).vs
             
-        return mesh
+            return mesh, num_colors
     
     def get_initial_weight_ls( num_colors ):
         '''
@@ -454,8 +456,8 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
             
         return final_colors_RGBXY
     
+    palette, num_colors = get_palette( input_img_path, image_arr, num_colors )
     weight_list = get_initial_weight_ls( num_colors )
-    palette = get_palette( input_img_path, image_arr, num_colors )
     
     candidate_colors, neighbor_list, weight_list = \
     get_candidate_colors_and_neighbor_list( palette, weight_list, num_colors, num_blend ) 
