@@ -26,7 +26,8 @@ exe = EXE(pyz,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=False )
+          console=False,
+          icon='assets/icon/icon.icns')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
@@ -37,5 +38,5 @@ coll = COLLECT(exe,
                name='Posterization GUI')
 app = BUNDLE(coll,
              name='Posterization GUI.app',
-             icon=None,
+             icon='assets/icon/icon.icns',
              bundle_identifier=None)
