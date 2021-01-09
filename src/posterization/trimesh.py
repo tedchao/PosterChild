@@ -831,6 +831,36 @@ class TriMesh( object ):
     FromOBJ_FileName = staticmethod( FromOBJ_FileName )
     
     
+    def FromVertexFace_to_MeshObj( vertices, faces ):
+        '''
+        Given: vertices and faces 
+        Return: a new TriMesh object.
+        '''
+        
+        result = TriMesh()
+        
+        for vertex in vertices:
+            result.vs.append( vertex )
+        
+        for face in faces:
+            
+            assert len( face ) == 3
+            
+            ## Subtract one from positive indices, and use relative addressing for negative
+            ## indices.
+            face = [ ( ind-1 ) if ( ind >= 0 ) else ( len(result.vs) + ind )
+                for ind in face ]
+            
+            result.faces.append( face )
+        
+        result.vs = asarray( result.vs )
+        result.faces = asarray( result.faces, dtype = int )
+        assert logical_and( result.faces >= 0, result.faces < len( result.vs ) ).all()
+        
+        return result
+            
+        
+    
     def FromOBJ_Lines( obj_lines ):
         '''
         Given lines from an OBJ file, return a new TriMesh object.
@@ -857,7 +887,7 @@ class TriMesh( object ):
             elif sline[0] == 'f':
                 ## The split('/')[0] means we record only the vertex coordinate indices
                 ## for each face.
-                face_vertex_ids = [ int( c.split('/')[0] ) for c in sline[1:] ]
+                face_vertex_ids = [ int( c.split('/')[0] ) for c in sline[1:] ]     # a list of vertex indices, e.g. [4,2,3]
                 ## Faces must be triangles.
                 assert len( face_vertex_ids ) == 3
                 
@@ -980,3 +1010,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    

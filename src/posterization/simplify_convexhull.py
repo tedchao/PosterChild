@@ -8,7 +8,7 @@ from .trimesh import TriMesh
 
 
 # convexhull file I/O
-def write_convexhull_into_obj_file(hull, output_rawhull_obj_file):
+def get_faces_vertices(hull):
     hvertices=hull.points[hull.vertices]
     points_index=-1*np.ones(hull.points.shape[0],dtype=np.int32)
     points_index[hull.vertices]=np.arange(len(hull.vertices))
@@ -27,13 +27,20 @@ def write_convexhull_into_obj_file(hull, output_rawhull_obj_file):
         if np.dot(normals,n)<0:
             hfaces[index][[1,0]]=hfaces[index][[0,1]]
     
+    #print('v: ', hvertices[0])
+    #print('h: ', hfaces)
+    return hvertices, hfaces
+    
+    '''
     myfile=open(output_rawhull_obj_file,'w')
     for index in range(hvertices.shape[0]):
         myfile.write('v '+str(hvertices[index][0])+' '+str(hvertices[index][1])+' '+str(hvertices[index][2])+'\n')
     for index in range(hfaces.shape[0]):
         myfile.write('f '+str(hfaces[index][0])+' '+str(hfaces[index][1])+' '+str(hfaces[index][2])+'\n')
     myfile.close()
+    '''
 
+# Turn hvertices, hfaces into a mesh object
 
 
 def compute_tetrahedron_volume(face, point):
@@ -202,8 +209,9 @@ def remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,
             # print (len(mesh.vs))
         return mesh
 
-def simplified_convex_hull(output_rawhull_obj_file, num_colors):
-    mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
+### ideally: def simplified_convex_hull(num_colors, hvertices, hfaces)
+def simplified_convex_hull(num_colors, vertices, faces):
+    mesh = TriMesh.FromVertexFace_to_MeshObj( vertices, faces )
     print ('original vertices number:',len(mesh.vs))
     
     if num_colors < len( mesh.vs ):
@@ -211,11 +219,9 @@ def simplified_convex_hull(output_rawhull_obj_file, num_colors):
         for i in range(N):
             #print ('loop:', i)
             old_num = len(mesh.vs)
-            mesh = TriMesh.FromOBJ_FileName(output_rawhull_obj_file)
             mesh = remove_one_edge_by_finding_smallest_adding_volume_with_test_conditions(mesh,option=2)
             newhull = ConvexHull(mesh.vs)   # new convex hull
             
-            write_convexhull_into_obj_file(newhull, output_rawhull_obj_file)
                     
             if len(mesh.vs) == old_num or len(mesh.vs) <= num_colors:
                 break

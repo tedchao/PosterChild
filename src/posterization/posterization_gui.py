@@ -363,11 +363,10 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
                 
         else:
             og_hull = ConvexHull( img_reshape )
-            output_rawhull_obj_file = path + "-rawconvexhull.obj"
-            write_convexhull_into_obj_file( og_hull, output_rawhull_obj_file )		
+            hvertices, hfaces = get_faces_vertices( og_hull )		
             
             # get simplified convexhull (clipped already)
-            mesh = simplified_convex_hull( output_rawhull_obj_file, num_colors ).vs
+            mesh = simplified_convex_hull( num_colors, hvertices, hfaces ).vs
             
             return mesh, num_colors
     
