@@ -493,11 +493,12 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
     print( 'Start smoothing images... ')
     
     def medianBlur_truncate( img, dft_img, window_size ):
+        
         filtered_img = cv2.medianBlur( img, window_size )
         if blur_map is None:
             filtered_img[ dft_img >= threshold ] = img[ dft_img >= threshold ]
         else:
-            filtered_img[ dft_img >= blur_map ] = img[ dft_img >= blur_map ]
+            filtered_img[ blur_map > .9 ] = img[ blur_map > .9 ]
         return filtered_img
     
     cv2_img_mlo = np.array( img_mlo )
@@ -528,3 +529,71 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
     print( 'Image smoothing Done!' )
     
     return cv2_img_mlo
+
+
+######### Experiment purpose #########
+def post_weight_smoothing( img_mlo, per_pixel_weight, palette, threshold, blur_window ):
+    
+    print( 'Start weights smoothing... ')
+    
+    #@jit(nopython=True)
+    def medianBlur_truncate( weights, dft_img, window_size ):
+        smooth_weights = np.copy( weights )
+        width, height = weights.shape[0], weights.shape[1]
+        
+        margin = int ( ( window_size - 1 ) / 2 )
+        
+        for i in range( margin, width - margin ):
+            for j in range( margin, height - margin ):
+                
+                window = weights[i - margin: i + margin + 1, j - margin: j + margin + 1]
+                #print('window: ', window.reshape( window_size ** 2, len( window[0, 0] ) ) )
+                median_weight = np.median( window.reshape( window_size ** 2, len( window[0, 0] ) ), axis = 0 )
+                #print('median: ', median_weight)
+                
+                #print('smooth: ', smooth_weights[i, j])
+                smooth_weights[i, j] = median_weight
+                
+        return smooth_weights
+                
+    
+    cv2_img_mlo = np.array( img_mlo )
+    width, height = cv2_img_mlo.shape[0], cv2_img_mlo.shape[1]
+    
+    # Convert RGB to BGR 
+    cv2_img_mlo = cv2_img_mlo[:, :, ::-1].copy()    # in cv2 format
+    
+    img_mlo_og = np.copy( cv2_img_mlo )
+    gray = cv2.cvtColor( cv2_img_mlo, cv2.COLOR_BGR2GRAY )
+    
+    # DFT and inverse DFT
+    rows, cols = gray.shape
+    crow, ccol = int( rows / 2 ) , int( cols / 2 )
+    f = np.fft.fft2( gray )
+    fshift = np.fft.fftshift( f )
+    
+    fshift[crow - 25: crow + 25, ccol - 25: ccol + 25] = 0
+    f_ishift = np.fft.ifftshift( fshift )
+    img_back = np.fft.ifft2( f_ishift )
+    img_back = np.abs( img_back ) / 255.    # black: 0, white: 1
+    
+    weights = per_pixel_weight.reshape( width, height, len( palette ) )
+    
+    weights = medianBlur_truncate( weights, img_back, blur_window )
+    weights = medianBlur_truncate( weights, img_back, blur_window )
+    weights = medianBlur_truncate( weights, img_back, blur_window )
+    
+    '''
+    print(weights.shape)
+    print(weights.reshape( width * height, len( palette ) ).shape)
+    print(palette.shape)
+    print(cv2_img_mlo.shape)
+    '''
+    recolor_img = ( weights.reshape( width * height, len( palette ) ) @ palette ).reshape( cv2_img_mlo.shape )
+    #print(recolor_img * 255.)
+    #cv2_img_mlo = cv2.cvtColor( recolor_img, cv2.COLOR_BGR2RGB )
+    
+    print( 'Image smoothing Done!' )
+    
+    return np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 )
+
