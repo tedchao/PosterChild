@@ -85,6 +85,7 @@ class MainWindow( QWidget ):
         self.palette = None
         
         # used for recoloring
+        self.weights_per_pixel_smooth = None
         self.weights_per_pixel = None
         self.palette_recolor = None
         self.palette_og = None
@@ -113,7 +114,6 @@ class MainWindow( QWidget ):
         self.saliency_map = None
         self.posterized_image_wo_smooth = -1 * np.ones( ( 1, 1, 1 ) )      # Store it as np array
         self.posterized_image_w_smooth = -1 * np.ones( ( 1, 1, 1 ) )       # Store it as np array
-        
         
         #### BOXES
         btns_io_box = QHBoxLayout() # set bottons' box for I/O
@@ -552,10 +552,10 @@ class MainWindow( QWidget ):
         self.set_rgb_slider( default_color )
     
     def get_recolor_img_and_palette( self ):
-        
-        recolor_img = ( self.weights_per_pixel @ self.palette_recolor ).reshape( self.input_image.shape )
-        recolor_smooth_img = post_smoothing( PIL.Image.fromarray( np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 ), 'RGB' ),
-            self.blur_slider_val, blur_window = self.blur_window_slider_val )
+        #recolor_img = ( self.weights_per_pixel @ self.palette_recolor ).reshape( self.input_image.shape )
+        recolor_smooth_img = np.clip( 0, 255, ( self.weights_per_pixel_smooth @ self.palette_recolor ).reshape( self.input_image.shape ) * 255. ).astype( np.uint8 )
+        #recolor_smooth_img = post_smoothing( PIL.Image.fromarray( np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 ), 'RGB' ),
+            #self.blur_slider_val, blur_window = self.blur_window_slider_val )
         
         new_palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( self.palette_recolor ) * 
             255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
@@ -833,11 +833,7 @@ class MainWindow( QWidget ):
             post_img, final_colors, add_mix_layers, palette = \
             posterization( path, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
             
-            ### setting for recoloring
             self.weights_per_pixel = add_mix_layers # save weight list per pixel
-            self.palette_recolor = palette  # save for palette recoloring
-            self.palette_og = self.palette_recolor.copy()
-            self.set_combo_icon()
             
             # save palette
             # 'ascontiguousarray' to make a C contiguous copy 
@@ -845,10 +841,29 @@ class MainWindow( QWidget ):
                 
             # convert to uint8 format
             self.posterized_image_wo_smooth = np.clip( 0, 255, post_img * 255. ).astype( np.uint8 )
+            
+            # make a map from unique colors to weights
+            unique_colors, unique_indices = np.unique( self.posterized_image_wo_smooth.reshape( -1, 3 ), return_index = True, axis = 0 )
+            color2weights = {}
+            for col, index in zip( unique_colors, unique_indices ):
+                weights = self.weights_per_pixel[ index ]
+                color2weights[ tuple( col ) ] = weights
                 
             # post-smoothing
             self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
-                
+
+            # pass smoothing along to the weights
+            self.weights_per_pixel_smooth = self.weights_per_pixel.copy()
+            for col, weights in color2weights.items():
+                color_mask = ( self.posterized_image_w_smooth.reshape( -1, 3 ) == np.array( col ) [None,:] ).all()
+                self.weights_per_pixel_smooth[ color_mask ] = weights
+            self.weights_per_pixel_smooth.shape = self.weights_per_pixel.shape
+            
+            ### setting for recoloring
+            self.palette_recolor = palette  # save for palette recoloring
+            self.palette_og = self.palette_recolor.copy()
+            self.set_combo_icon()
+            
             end = time.time()
             print( "Finished. Total time: ", end - start )
                 
