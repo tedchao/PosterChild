@@ -848,14 +848,15 @@ class MainWindow( QWidget ):
             for col, index in zip( unique_colors, unique_indices ):
                 weights = self.weights_per_pixel[ index ]
                 color2weights[ tuple( col ) ] = weights
-                
+
             # post-smoothing
             self.posterized_image_w_smooth = post_smoothing( PIL.Image.fromarray( self.posterized_image_wo_smooth, 'RGB' ), self.blur_slider_val, blur_window = self.blur_window_slider_val )
-
+            
             # pass smoothing along to the weights
             self.weights_per_pixel_smooth = self.weights_per_pixel.copy()
             for col, weights in color2weights.items():
-                color_mask = ( self.posterized_image_w_smooth.reshape( -1, 3 ) == np.array( col ) [None,:] ).all()
+                #color_mask = ( self.posterized_image_w_smooth.reshape( -1, 3 ) == np.array( col ) [None,:] ).all()
+                color_mask = np.where( np.all( self.posterized_image_w_smooth.reshape( -1, 3 ) == np.array( col ), axis = 1 ) )[0]
                 self.weights_per_pixel_smooth[ color_mask ] = weights
             self.weights_per_pixel_smooth.shape = self.weights_per_pixel.shape
             
