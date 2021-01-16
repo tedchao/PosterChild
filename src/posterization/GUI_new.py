@@ -187,13 +187,13 @@ class MainWindow( QWidget ):
         
         
         #### Previous-next buttons
-        self.previous_btn = QPushButton( '<<<-- See History' )
+        self.previous_btn = QPushButton( 'Previous Posterization' )
         self.previous_btn.clicked.connect( self.paste_previous_image )
         self.previous_btn.setToolTip( 'Press the button to see your <b>previous</b> image in the gallory.' ) 
         self.previous_btn.setMinimumWidth( 165 )
         self.previous_btn.setMaximumWidth( 165 )
         
-        self.next_btn = QPushButton( 'See Next -->>>' )
+        self.next_btn = QPushButton( 'Next Posterization' )
         self.next_btn.clicked.connect( self.paste_next_image )
         self.next_btn.setToolTip( 'Press the button to see your <b>next</b> image in the gallory.' ) 
         self.next_btn.setMinimumWidth( 165 )
