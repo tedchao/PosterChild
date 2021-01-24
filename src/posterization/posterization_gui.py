@@ -8,6 +8,7 @@ import gco
 from skimage import color
 from sklearn.cluster import KMeans
 from scipy.optimize import *
+import scipy.spatial.distance
 import cv2
 
 from numba import jit
@@ -90,12 +91,19 @@ def get_unary( image_arr, candidate_colors ):
     unary = np.zeros( ( image_arr.shape[0], image_arr.shape[1], len( candidate_colors ) ) )
     
     for i in range( len( candidate_colors ) ):
+        
+        # 2-norm way
         dist_square = ( candidate_colors[i] - image_arr ) ** 2
         unary[:, :, i] = np.sqrt( np.sum( dist_square, axis = 2 ) )
+        '''
+        # 1-norm way
+        dist_abs = np.abs( candidate_colors[i] - image_arr )
+        unary[:, :, i] = np.sum( dist_abs, axis = 2 )
+        '''
     return unary
 
 
-def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penalization = 0.7 ):
+def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penalization = 0.8 ):
     '''
     Given: list of neighboring information (2D list), list of weights for each color (2D list),
     list of candidate colors, regularization term, and option. (option=1: Simple Pott's potential,
@@ -116,7 +124,7 @@ def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penali
         for i in range( len( neighbor_list ) ):
             for j in range( len( neighbor_list[i] ) ):
                 binary[i][neighbor_list[i][j]] = 0.5
-                
+
     # half of the L1 norm distance based on weights on each palette
     if option == 2:
         binary = np.zeros( ( len( neighbor_list ), len( neighbor_list ) ) )
@@ -172,11 +180,16 @@ def optimize_weight( labels, nonrepeated_labels, weight_list, palette, image_arr
         
     for label in nonrepeated_labels:
         if label not in palette_labels:
+            '''
             F_label = []
             for i in range( width ):
                 for j in range( height ):
                     if labels[i][j] == label:
                         F_label.append( image_arr[i, j, :] )
+            '''
+            
+            pixel_mask = ( labels == label ).all( axis = 2 )
+            F_label = image_arr[ pixel_mask ]
                         
             # quadratic programming            
             F_prime = np.array( F_label )
@@ -270,11 +283,11 @@ def get_kmeans_cluster_image( num_clusters, img_arr, width, height, final_colors
     kmeans_labels = kmeans.labels_
     clusters = kmeans.cluster_centers_
     
-    for i in range( kmeans_labels.size ):
-        if option == 2: # RGBXY space
-            img_arr[i, :] = clusters[kmeans_labels[i]][:3]
-        else: # RGB space
-            img_arr[i, :] = clusters[kmeans_labels[i]]
+    if option == 2: # RGBXY space
+        img_arr = clusters[ kmeans_labels ][:, :3]
+    else: # RGB space
+        img_arr = clusters[ kmeans_labels ]
+    
     img_arr = np.asfarray( img_arr ).reshape( width, height, 3 )
     
     if option == 2:
@@ -315,7 +328,7 @@ def save_additive_mixing_layers( add_mix_layers, width, height, palette, save_pa
         Image.fromarray( np.clip( 0, 255, img_add_mix * 255. ).astype( np.uint8 ), 'RGBA' ).save( save_path + '-' + str( i ) + '.png' )
         
         
-def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 3, penalization = 0.7 ):
+def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 3, penalization = 0.8 ):
     '''
     Given:
         input_img_path: path for input image.
@@ -455,6 +468,8 @@ def posterization( input_img_path, image_og, image_arr, num_colors, num_blend = 
             
         return final_colors_RGBXY
     
+    #print( num_colors, num_blend, penalization )
+    
     palette, num_colors = get_palette( input_img_path, image_arr, num_colors )
     weight_list = get_initial_weight_ls( num_colors )
     
@@ -531,34 +546,53 @@ def post_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
     return cv2_img_mlo
 
 
+
+
 ######### Experiment purpose #########
-def post_weight_smoothing( img_mlo, per_pixel_weight, palette, threshold, blur_window ):
+def post_spatial_smoothing( img_mlo, threshold, blur_window = 7, blur_map = None ):
     
-    print( 'Start weights smoothing... ')
+    print( 'Start smoothing images... ')
     
-    #@jit(nopython=True)
-    def medianBlur_truncate( weights, dft_img, window_size ):
-        smooth_weights = np.copy( weights )
-        width, height = weights.shape[0], weights.shape[1]
+    def spatial_median( points ):
+        '''
+        Given a sequence of K-dimensional 'points',
+        return the element of 'points' whose total L1 distance to every other point is minimal.
         
-        margin = int ( ( window_size - 1 ) / 2 )
+        from: ~/Work/rutgerscolumbia/crowdavg/drawing/general/smileys1/data-and-analysis/average_helper.py
+        '''
         
-        for i in range( margin, width - margin ):
-            for j in range( margin, height - margin ):
-                
-                window = weights[i - margin: i + margin + 1, j - margin: j + margin + 1]
-                #print('window: ', window.reshape( window_size ** 2, len( window[0, 0] ) ) )
-                median_weight = np.median( window.reshape( window_size ** 2, len( window[0, 0] ) ), axis = 0 )
-                #print('median: ', median_weight)
-                
-                #print('smooth: ', smooth_weights[i, j])
-                smooth_weights[i, j] = median_weight
-                
-        return smooth_weights
-                
+        stack = np.asarray( points )
+        
+        allDists = scipy.spatial.distance.squareform( scipy.spatial.distance.pdist(stack), checks = False )
+        closest = np.argmin( allDists.sum( axis = 0 ) )
+        return stack[ closest ]
+    
+    def spatial_spatial_median( img, dft_img, radius ):
+        '''
+        Given:
+            img: A rows-by-cols-by-channels (3D) numpy array.
+            radius: An integer >= 0 specifying the size of the window
+                    around each pixel to consider (pixel-radius,pixel+radius+1)
+        Returns:
+            An image the same size as `img` where each pixel is replaced with the
+            spatial median of all the channels-dimensional values in the window
+            around it.
+        '''
+        
+        img = img.astype(float)
+        blur = img.copy()
+        for row in range( img.shape[0] ):
+        # for row in tqdm( range( img.shape[0] ) ):
+            for col in range( img.shape[1] ):
+                if  dft_img[ row, col ] <  threshold:
+                    window = img[
+                        max(0, row-radius) : min( img.shape[0], row+radius+1 ),
+                        max(0, col-radius) : min( img.shape[1], col+radius+1 )
+                        ]
+                    blur[ row, col ] = spatial_median( window.reshape( -1, window.shape[-1] ) )
+        return blur
     
     cv2_img_mlo = np.array( img_mlo )
-    width, height = cv2_img_mlo.shape[0], cv2_img_mlo.shape[1]
     
     # Convert RGB to BGR 
     cv2_img_mlo = cv2_img_mlo[:, :, ::-1].copy()    # in cv2 format
@@ -577,23 +611,35 @@ def post_weight_smoothing( img_mlo, per_pixel_weight, palette, threshold, blur_w
     img_back = np.fft.ifft2( f_ishift )
     img_back = np.abs( img_back ) / 255.    # black: 0, white: 1
     
-    weights = per_pixel_weight.reshape( width, height, len( palette ) )
+    cv2_img_mlo = spatial_spatial_median( cv2_img_mlo, img_back, blur_window )
+    cv2_img_mlo = spatial_spatial_median( cv2_img_mlo, img_back, blur_window )
+    cv2_img_mlo = spatial_spatial_median( cv2_img_mlo, img_back, blur_window )
     
-    weights = medianBlur_truncate( weights, img_back, blur_window )
-    weights = medianBlur_truncate( weights, img_back, blur_window )
-    weights = medianBlur_truncate( weights, img_back, blur_window )
-    
-    '''
-    print(weights.shape)
-    print(weights.reshape( width * height, len( palette ) ).shape)
-    print(palette.shape)
-    print(cv2_img_mlo.shape)
-    '''
-    recolor_img = ( weights.reshape( width * height, len( palette ) ) @ palette ).reshape( cv2_img_mlo.shape )
-    #print(recolor_img * 255.)
-    #cv2_img_mlo = cv2.cvtColor( recolor_img, cv2.COLOR_BGR2RGB )
+    cv2_img_mlo = cv2.cvtColor( cv2_img_mlo.astype( np.uint8 ), cv2.COLOR_BGR2RGB )
     
     print( 'Image smoothing Done!' )
     
-    return np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 )
+    return cv2_img_mlo
 
+
+'''
+@jit(nopython=True)
+def medianBlur_truncate( weights, dft_img, window_size ):
+    smooth_weights = np.copy( weights )
+    width, height = weights.shape[0], weights.shape[1]
+    
+    margin = int ( ( window_size - 1 ) / 2 )
+    
+    for i in range( margin, width - margin ):
+        for j in range( margin, height - margin ):
+            
+            window = weights[i - margin: i + margin + 1, j - margin: j + margin + 1]
+            #print('window: ', window.reshape( window_size ** 2, len( window[0, 0] ) ) )
+            median_weight = np.median( window.reshape( window_size ** 2, len( window[0, 0] ) ), axis = 0 )
+            #print('median: ', median_weight)
+            
+            #print('smooth: ', smooth_weights[i, j])
+            smooth_weights[i, j] = median_weight
+            
+    return smooth_weights
+'''
