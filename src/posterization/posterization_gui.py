@@ -135,7 +135,7 @@ def get_binary( neighbor_list, weight_list, candidate_colors, option = 1, penali
                     
     return binary
 
-@jit(nopython=True)
+#@jit(nopython=True)
 def get_nonrepeated_labels( labels ):
     '''
     Given: list of labels (width x height, 1).
@@ -143,11 +143,10 @@ def get_nonrepeated_labels( labels ):
     Return: list of nonrepeated used labels.
     '''
     
-    visited = []
-    for label in labels:
-        if label not in visited:
-            visited.append( label )
-    return visited
+    _, indx = np.unique( np.array( labels ), return_index = True )
+    unique_labels = list( labels[ np.sort( indx ) ]  )
+    
+    return unique_labels
 
 
 def optimize_weight( labels, nonrepeated_labels, weight_list, palette, image_arr ):
