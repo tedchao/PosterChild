@@ -563,7 +563,19 @@ class MainWindow( QWidget ):
     
     def get_recolor_img_and_palette( self ):
         #recolor_img = ( self.weights_per_pixel @ self.palette_recolor ).reshape( self.input_image.shape )
-        recolor_smooth_img = np.clip( 0, 255, ( self.weights_per_pixel_smooth @ self.palette_recolor ).reshape( self.input_image.shape ) * 255. ).astype( np.uint8 )
+        
+        # fix it for odd resolution when downsampled version applied
+        if self.input_image.shape[0] % 2 == 1 and self.switch.isChecked():
+            w = self.input_image.shape[0] + 1
+        else:
+            w = self.input_image.shape[0]
+            
+        if self.input_image.shape[1] % 2 == 1 and self.switch.isChecked():
+            h = self.input_image.shape[1] + 1
+        else:
+            h = self.input_image.shape[1]
+            
+        recolor_smooth_img = np.clip( 0, 255, ( self.weights_per_pixel_smooth @ self.palette_recolor ).reshape( ( w, h, 3 ) ) * 255. ).astype( np.uint8 )
         #recolor_smooth_img = post_smoothing( PIL.Image.fromarray( np.clip( 0, 255, recolor_img * 255. ).astype( np.uint8 ), 'RGB' ),
             #self.blur_slider_val, blur_window = self.blur_window_slider_val )
         
@@ -850,7 +862,9 @@ class MainWindow( QWidget ):
             posterization( path, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
             
             if self.switch.isChecked():
-                self.weights_per_pixel = rescale( add_mix_layers.reshape( ( post_img.shape[0], post_img.shape[1], self.palette_slider_val ) ), 2,  order=0, multichannel=True, anti_aliasing=False ).reshape( -1, self.palette_slider_val )
+                ### 'Greyscale' might fail in this case since the palette size for greyscale is 2.
+                new_am = add_mix_layers.reshape( ( post_img.shape[0], post_img.shape[1], self.palette_slider_val ) )    
+                self.weights_per_pixel = rescale( new_am, 2,  order=0, multichannel=True, anti_aliasing=False ).reshape( -1, self.palette_slider_val )
             else:
                 self.weights_per_pixel = add_mix_layers # save weight list per pixel
             
