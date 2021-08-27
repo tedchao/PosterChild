@@ -2,14 +2,9 @@
 
 import sys
 
-
 from pathlib import Path
 from .posterization_gui import *
 from .simplepalettes import *
-'''
-from posterization_gui import *
-import simplepalettes
-'''
 
 import numpy as np
 import cv2
@@ -22,7 +17,9 @@ except ImportError:
     from PySide2.QtCore import *
     from PySide2.QtGui import *
     from PySide2.QtWidgets import *
-    
+
+from skimage.transform import rescale
+from qtwidgets import Toggle
 from PIL import Image
 
 # In command line: "pip install opencv-python-headless" to avoid qt complaining two set of binaries
@@ -76,6 +73,10 @@ class MainWindow( QWidget ):
         self.imageLabel = QLabel()
         self.imageLabel.setPixmap( self.welcome )
         
+        # Toggle for switching to downsampled version
+        self.switch = Toggle()
+        self.switch.setMaximumWidth( 200 )
+        
         ### palette images
         self.paletteLabel = QLabel()
         self.paletteLabel.setPixmap( QPixmap() )
@@ -123,6 +124,7 @@ class MainWindow( QWidget ):
         sld_box_blend = QHBoxLayout()
         sld_box_cluster = QHBoxLayout()
         sld_box_binary = QHBoxLayout()
+        toggle_box = QHBoxLayout()
         sld_box_blur = QHBoxLayout()
         sld_box_window = QHBoxLayout()
         
@@ -282,6 +284,9 @@ class MainWindow( QWidget ):
         
         
         ### LABELS
+        self.switch_text = QLabel( 'Downsampled Version? ' )
+        self.switch_text.setAlignment( Qt.AlignLeft )
+        
         # labels
         self.blur_window_text = QLabel( 'Boundary smoothess (Default: 7):' )
         self.blur_text = QLabel( 'Detail abstraction (Default: 0.1):  ' )
@@ -432,6 +437,10 @@ class MainWindow( QWidget ):
         sld_box_binary.addWidget( self.binary_sld_label )
         sld_box_binary.addStretch(8)
         
+        toggle_box.addWidget( self.switch_text )
+        toggle_box.addWidget( self.switch )
+        toggle_box.addStretch(8)
+        
         btns_posterize_box.addWidget( self.posterize_btn )
         btns_posterize_box.addWidget( self.reset_posterize_btn )
         btns_posterize_box.addStretch(8)
@@ -501,26 +510,27 @@ class MainWindow( QWidget ):
         grid.addLayout( sld_box_blend, 2, 0 )
         grid.addLayout( sld_box_cluster, 3, 0 )
         grid.addLayout( sld_box_binary, 4, 0 )
-        grid.addLayout( btns_posterize_box, 5, 0 )
+        grid.addLayout( toggle_box, 5, 0 )
+        grid.addLayout( btns_posterize_box, 6, 0 )
         
         ### parameters for smoothing
-        grid.addLayout( sld_box_blur, 7, 0 )
-        grid.addLayout( sld_box_window, 8, 0 )
-        grid.addLayout( blur_box, 9, 0 )
+        grid.addLayout( sld_box_blur, 8, 0 )
+        grid.addLayout( sld_box_window, 9, 0 )
+        grid.addLayout( blur_box, 10, 0 )
     
         ### boxes for previous/next and show/hide
         grid.addLayout( pages_box, 0, 10 )
         grid.addLayout( show_hide_box, 0, 11 )
         
         ### sliders for recoloring
-        grid.addWidget( self.rgb_text, 11, 0 )
-        grid.addLayout( combo_recolor_box, 12, 0 )
-        grid.addLayout( sld_r_recolor, 13, 0 )
-        grid.addLayout( sld_g_recolor, 14, 0 )
-        grid.addLayout( sld_b_recolor, 15, 0 )
-        grid.addLayout( recolor_btn_box, 16, 0 )
+        grid.addWidget( self.rgb_text, 12, 0 )
+        grid.addLayout( combo_recolor_box, 13, 0 )
+        grid.addLayout( sld_r_recolor, 14, 0 )
+        grid.addLayout( sld_g_recolor, 15, 0 )
+        grid.addLayout( sld_b_recolor, 16, 0 )
+        grid.addLayout( recolor_btn_box, 17, 0 )
         
-        grid.addLayout( img_box, 1, 1, 18, 18 )
+        grid.addLayout( img_box, 1, 1, 19, 19 )
         self.setLayout(grid)
         
         self.show()
@@ -825,6 +835,12 @@ class MainWindow( QWidget ):
             messagebox = TimerMessageBox( 1, self )
             messagebox.open()
             
+            # if downsampled version is selected, downsize the input and divide the penality by 2
+            if self.switch.isChecked(): 
+                print( 'Downsampled version selected.' )
+                img_arr = rescale( img_arr, 0.5, order=0, multichannel=True , anti_aliasing=False )
+                self.binary_slider_val /= 2
+            
             # K-means
             img_arr_re = img_arr.reshape( ( -1, 3 ) )
             img_arr_cluster = get_kmeans_cluster_image( self.cluster_slider_val, img_arr_re, img_arr.shape[0], img_arr.shape[1] )
@@ -833,14 +849,24 @@ class MainWindow( QWidget ):
             post_img, final_colors, add_mix_layers, palette = \
             posterization( path, img_arr, img_arr_cluster, self.palette_slider_val, self.blend_slider_val, self.binary_slider_val )
             
-            self.weights_per_pixel = add_mix_layers # save weight list per pixel
+            if self.switch.isChecked():
+                self.weights_per_pixel = rescale( add_mix_layers.reshape( ( post_img.shape[0], post_img.shape[1], self.palette_slider_val ) ), 2,  order=0, multichannel=True, anti_aliasing=False ).reshape( -1, self.palette_slider_val )
+            else:
+                self.weights_per_pixel = add_mix_layers # save weight list per pixel
             
             # save palette
             # 'ascontiguousarray' to make a C contiguous copy 
             self.palette = np.ascontiguousarray( np.clip( 0, 255, simplepalettes.palette2swatch( palette ) * 255. ).astype( np.uint8 ).transpose( ( 1, 0, 2 ) ) )
-                
+            
+            if self.switch.isChecked(): 
+                post_img = rescale( post_img, 2,  order=0, multichannel=True, anti_aliasing=False )
+                self.posterized_image_wo_smooth = np.clip( 0, 255, post_img*255. ).astype( np.uint8 )
+                self.posterized_image_wo_smooth = cv2.medianBlur( self.posterized_image_wo_smooth, 5 )
+            else:
+                self.posterized_image_wo_smooth = np.clip( 0, 255, post_img * 255. ).astype( np.uint8 )
+            
             # convert to uint8 format
-            self.posterized_image_wo_smooth = np.clip( 0, 255, post_img * 255. ).astype( np.uint8 )
+                #self.posterized_image_wo_smooth = np.clip( 0, 255, post_img * 255. ).astype( np.uint8 )
             
             # make a map from unique colors to weights
             unique_colors, unique_indices = np.unique( self.posterized_image_wo_smooth.reshape( -1, 3 ), return_index = True, axis = 0 )
