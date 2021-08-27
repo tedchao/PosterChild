@@ -4,7 +4,7 @@ PosterChild: Blend‐Aware Artistic Posterization (EGSR 2021). Please read [pape
 
 ## Installation
 
-### macOS or Linux
+### MacOS or Linux
 
 Use [Poetry](https://python-poetry.org/). Install Poetry itself via `pip install poetry` or `brew install poetry`. Then:
 
@@ -17,7 +17,7 @@ To create a double-clickable .app for macOS users, run (inside a poetry shell):
 
 A double-clickable `Posterization GUI.app` will appear inside the `dist/` directory.
 
-### Windows
+### Windows or MacOS
 
 Install [Anaconda](https://www.anaconda.com/products/individual) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
 (Miniconda is faster to install.) Choose the 64-bit Python 3.x version. Launch the Anaconda shell from the Start menu and navigate to the posterization directory.
@@ -36,4 +36,4 @@ Launch the GUI:
 
 Command line example:
 
-    python src/cli.py images/obama.jpg posterized_images/obama additive_mixing_layers/obama
+    python src/cli.py [source-image-path] [output-image-path] [output-additive-mixing-path] [0 or 1 (indicating if using downsampled approach)]
