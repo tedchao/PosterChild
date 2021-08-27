@@ -1,6 +1,7 @@
 # PosterChild
 
 PosterChild: Blend‐Aware Artistic Posterization (EGSR 2021). Please read [paper](https://cragl.cs.gmu.edu/posterchild/PosterChild-%20Blend-Aware%20Artistic%20Posterization%20(Cheng-Kang%20Ted%20Chao,%20Karan%20Singh,%20Yotam%20Gingold%202021%20EGSR)%20300dpi.pdf) for more details.
+Cheng-Kang Ted Chao, Karan Singh, Yotam Gingold.
 
 ## Installation
 
