@@ -20,5 +20,6 @@ dependencies:
   - git
   - pyside2
   - pip:
+     - qtwidgets
      - git+https://github.com/yig/pyGCO@buil-win
 prefix: /Users/yotam/opt/miniconda3/envs/posterization
