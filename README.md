@@ -4,6 +4,12 @@ PosterChild: Blend‐Aware Artistic Posterization (EGSR 2021). Please read [pape
 
 [Cheng-Kang Ted Chao, Karan Singh, Yotam Gingold.]
 
+## License
+
+This work is dual-licensed under Apache 2.0 and MIT.
+
+`SPDX-License-Identifier: Apache-2.0 and MIT`
+
 ## Installation
 
 ### MacOS or Linux
