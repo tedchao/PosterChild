@@ -22,5 +22,6 @@ dependencies:
   - pip:
      - qtpy
      - qtwidgets
-     - git+https://github.com/yig/pyGCO@buil-win
+     - git+https://github.com/tedchao/pyGCO@buil-win
+     #- gco-wrapper
 prefix: /Users/yotam/opt/miniconda3/envs/posterization
