@@ -36,6 +36,11 @@ Then:
 
 To update an already created environment if the `environment.yml` file changes, first activate and then run `conda env update --file environment.yml --prune`.
 
+If `--prune` does not work, try remove all the environment and then re-install:
+
+    conda remove -n posterization --all
+    conda env create -f environment.yml
+
 ## Usage
 
 Launch the GUI:
